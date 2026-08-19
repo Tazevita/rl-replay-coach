@@ -10,8 +10,6 @@ import { ReplayAnalysisRunnerJsonAdapter } from "../infrastructure/analysis/repl
 import { StoredReplayAnalysisJsonAdapter } from "../infrastructure/analysis/stored-replay-analysis-json-adapter";
 import { OpenAiMistakeExplanationProvider } from "../infrastructure/ai/openai-mistake-explanation-provider";
 import { OpenAiPlayerWeaknessesProvider } from "../infrastructure/ai/openai-player-weaknesses-provider";
-import { SqliteReplayRepository } from "../infrastructure/replay/sqlite-replay-repository";
-import { SqliteReplayJobRepository } from "../infrastructure/replay/sqlite-replay-job-repository";
 import { RrrocketProcessAdapter } from "../infrastructure/replay/rrrocket-process-adapter";
 import { LambdaReplayParser } from "../infrastructure/replay/lambda-replay-parser";
 import { R2ObjectReader } from "../infrastructure/replay/r2-object-reader";
@@ -27,7 +25,6 @@ export function composeReplayApi(
 ) {
   const modelRoot = resolve(root, "../rocket-league-prediction-model");
   const python = resolve(modelRoot, "prediction-model/.venv/bin/python");
-  const databasePath = resolve(root, "input/replay-analysis.sqlite");
   const parserQueueUrl = environment.REPLAY_PARSER_QUEUE_URL?.trim();
   const parserSecretId = environment.REPLAY_PARSER_R2_SECRET_ID?.trim();
   const supabaseUrl = environment.SUPABASE_URL?.trim();
@@ -36,32 +33,23 @@ export function composeReplayApi(
   if (!supabaseUrl || !supabasePublishableKey) {
     throw new Error("SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are required for authentication.");
   }
-  if (supabaseUrl && supabaseSecretKey && !parserSecretId) {
-    throw new Error("REPLAY_PARSER_R2_SECRET_ID is required when Supabase persistence is configured.");
+  if (!supabaseSecretKey || !parserSecretId) {
+    throw new Error("SUPABASE_SECRET_KEY and REPLAY_PARSER_R2_SECRET_ID are required for replay persistence.");
   }
   const awsRegion = environment.AWS_REGION?.trim() || "us-east-2";
   const awsProfile = environment.AWS_PROFILE?.trim() || undefined;
   const authClient = createClient(supabaseUrl, supabasePublishableKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const supabase = supabaseSecretKey
-    ? createClient(supabaseUrl, supabaseSecretKey, {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      })
-    : undefined;
-  const repository = supabase && parserSecretId
-    ? new SupabaseReplayRepository(supabase, new R2ObjectReader({
-        secretId: parserSecretId,
-        region: awsRegion,
-        profile: awsProfile,
-      }))
-    : new SqliteReplayRepository(databasePath);
-  const jobs = supabase
-    ? new SupabaseReplayJobRepository(supabase)
-    : new SqliteReplayJobRepository(databasePath);
-  if (parserQueueUrl && !parserSecretId) {
-    throw new Error("REPLAY_PARSER_R2_SECRET_ID is required when REPLAY_PARSER_QUEUE_URL is configured.");
-  }
+  const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const repository = new SupabaseReplayRepository(supabase, new R2ObjectReader({
+    secretId: parserSecretId,
+    region: awsRegion,
+    profile: awsProfile,
+  }));
+  const jobs = new SupabaseReplayJobRepository(supabase);
   const parser = parserQueueUrl && parserSecretId
     ? new LambdaReplayParser({
         queueUrl: parserQueueUrl,

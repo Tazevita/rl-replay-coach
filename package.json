@@ -25,7 +25,6 @@
     "@supabase/supabase-js": "^2.112.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "sqlite3": "^6.0.1",
     "three": "^0.179.1",
     "zod": "^4.4.3"
   },

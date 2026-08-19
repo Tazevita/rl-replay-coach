@@ -26,7 +26,7 @@ React renderer hosts
 
 The browser validates the same response schema. React renders the stable, model-neutral team analysis contract directly. Finding text is escaped by JSX, factual event relation controls event titles, finding tone controls styling, and navigation context is derived from each finding's `preRollSeconds`.
 
-Replay IDs are opaque. Production persistence stores metadata, validated analysis bundles, players, mistakes, and jobs in Supabase while parsed replay payloads remain private in R2; the database stores only the R2 object key. SQLite stores both payload and metadata as the development/test fallback. Exact duplicate uploads are detected by a creator-scoped SHA-256 hash and return the existing bundle without rerunning analysis. Supabase publication is one transactional RPC, and sustained disagreement findings are normalized for player history queries. The in-process upload gate rejects concurrent work with HTTP 409.
+Replay IDs are opaque. Persistence stores metadata, validated analysis bundles, players, mistakes, and jobs in Supabase while parsed replay payloads remain private in R2; the database stores only the R2 object key. Exact duplicate uploads are detected by a creator-scoped SHA-256 hash and return the existing bundle without rerunning analysis. Publication is one transactional RPC, and sustained disagreement findings are normalized for player history queries. The in-process upload gate rejects concurrent work with HTTP 409.
 
 ## Replay domain
 

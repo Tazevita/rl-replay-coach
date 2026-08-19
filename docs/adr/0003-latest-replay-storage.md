@@ -2,7 +2,7 @@
 
 ## Status
 
-Superseded by durable SQLite replay storage.
+Superseded by durable Supabase replay storage.
 
 ## Decision
 

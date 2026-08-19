@@ -14,13 +14,13 @@ The upload API expects the sibling `rocket-league-prediction-model` repository b
 
 The application initially requests `./input/output.json`. That local generated file is ignored by Git and may fail to load in a fresh checkout; uploading a replay can recover from that state. Tests use `smallReplayFixture()` rather than the existing large generated replay artifact.
 
-An upload must be a non-empty `.replay` body no larger than 100 MB. Uploaded and parsed temporary files are removed after each attempt. Successful replays and analysis bundles use `input/replay-analysis.sqlite` by default; replay IDs remain available after later uploads and server restarts. Exact duplicate files and player scans are scoped to the authenticated Supabase user ID in `created_by`.
+An upload must be a non-empty `.replay` body no larger than 100 MB. Uploaded and parsed temporary files are removed after each attempt. Replay IDs remain available after later uploads and server restarts. Exact duplicate files and player scans are scoped to the authenticated Supabase user ID in `created_by`.
 
-Set server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY` to store metadata, analysis bundles, normalized mistakes, and jobs in Supabase. In this mode the parsed replay JSON remains in the private R2 bucket and only its object key is stored on `replays`; `REPLAY_PARSER_R2_SECRET_ID` and the optional AWS region/profile are required so the server can read it. Never expose the secret key or R2 credentials through a `VITE_` variable. Apply the clean schema with `supabase db push` (or run `supabase/migrations/202608190001_initial_replay_persistence.sql` through an authorized migration workflow) before starting the server. SQLite remains the fallback when Supabase server values are absent.
+Set server-only `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and `REPLAY_PARSER_R2_SECRET_ID` to store metadata, analysis bundles, normalized mistakes, and jobs in Supabase. The parsed replay JSON remains in the private R2 bucket and only its object key is stored on `replays`; the optional AWS region/profile configure access to it. Never expose the secret key or R2 credentials through a `VITE_` variable. Apply the clean schema with `supabase db push` (or run `supabase/migrations/202608190001_initial_replay_persistence.sql` through an authorized migration workflow) before starting the server.
 
 The upload lock is process-wide. Running multiple Vite server processes against the same output path is unsupported.
 
-`GET /api/player-mistakes?username=...` returns sustained mistakes from gameplay uploaded by the active creator. The creator currently defaults to `johndoe` at both the application and SQLite-schema levels. `vite preview` is not a static-only deployment because it also installs the local replay API and therefore needs the external tools for real uploads.
+`GET /api/player-mistakes?username=...` returns sustained mistakes from gameplay uploaded by the active creator. `vite preview` is not a static-only deployment because it also installs the local replay API and therefore needs the external tools for real uploads.
 
 ## Mistake explanations
 
