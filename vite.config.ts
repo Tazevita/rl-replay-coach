@@ -1,0 +1,20 @@
+import react from "@vitejs/plugin-react";
+import { loadEnv } from "vite";
+import { defineConfig } from "vitest/config";
+import { composeReplayApi } from "./src/server/composition";
+
+export default defineConfig(({ mode }) => {
+  const environment = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
+  const browserSupabaseUrl = environment.VITE_SUPABASE_URL?.trim() || environment.SUPABASE_URL?.trim();
+  const browserSupabaseKey = environment.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || environment.SUPABASE_PUBLISHABLE_KEY?.trim();
+  return {
+    plugins: [react(), composeReplayApi(undefined, environment)],
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(browserSupabaseUrl),
+      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(browserSupabaseKey),
+    },
+    test: {
+      exclude: ["tests/browser/**", "node_modules/**"],
+    },
+  };
+});

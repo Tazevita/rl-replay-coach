@@ -1,0 +1,14 @@
+node_modules/
+dist/
+test-results/
+.env
+.env.*
+!.env.example
+.DS_Store
+input/output.json
+input/.uploaded.replay
+input/.output.json.tmp
+input/*.sqlite
+input/*.sqlite-shm
+input/*.sqlite-wal
+supabase/.temp/
