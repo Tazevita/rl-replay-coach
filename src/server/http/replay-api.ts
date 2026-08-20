@@ -168,6 +168,9 @@ export function createReplayHttpHandler(
         return sendJson(response, 502, { error: "Could not generate the mistake explanation." });
       }
     }
+    if (request.method === "POST" && requestUrl.pathname === "/api/replay-uploads") {
+      return sendJson(response, 404, { error: "Direct uploads are unavailable on the local server." });
+    }
     if (request.method !== "POST" || requestUrl.pathname !== "/api/replays") return next();
 
     let filename: string;

@@ -1,0 +1,12 @@
+{
+  "framework": "vite",
+  "functions": {
+    "api/[...path].ts": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/check-player", "destination": "/index.html" },
+    { "source": "/replay-history", "destination": "/index.html" }
+  ]
+}

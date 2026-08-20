@@ -19,6 +19,7 @@
     "@aws-sdk/client-secrets-manager": "^3.883.0",
     "@aws-sdk/client-sqs": "^3.883.0",
     "@aws-sdk/credential-providers": "^3.883.0",
+    "@aws-sdk/s3-request-presigner": "^3.1114.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@supabase/server": "^1.4.1",

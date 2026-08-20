@@ -1,6 +1,7 @@
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { fromIni } from "@aws-sdk/credential-providers";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 interface AwsClient {
   send(command: unknown): Promise<any>;
@@ -20,6 +21,11 @@ export interface R2ObjectReaderOptions {
     accessKeyId: string;
     secretAccessKey: string;
   }) => AwsClient;
+}
+
+export interface R2ObjectMetadata {
+  size: number;
+  sha256?: string;
 }
 
 function requiredString(value: unknown, name: string): string {
@@ -46,6 +52,36 @@ export class R2ObjectReader implements ReplayObjectReader {
     } catch (error) {
       throw new Error(`R2 object ${objectKey} is not valid JSON.`, { cause: error });
     }
+  }
+
+  async metadata(objectKey: string): Promise<R2ObjectMetadata | undefined> {
+    const storage = await this.storage();
+    try {
+      const response = await storage.client.send(new HeadObjectCommand({ Bucket: storage.bucket, Key: objectKey }));
+      return { size: Number(response.ContentLength ?? 0), sha256: response.Metadata?.sha256 };
+    } catch (error) {
+      const candidate = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (candidate.name === "NotFound" || candidate.name === "NoSuchKey" || candidate.$metadata?.httpStatusCode === 404) return undefined;
+      throw error;
+    }
+  }
+
+  async createUploadUrl(objectKey: string, size: number, sha256: string): Promise<{ url: string; headers: Record<string, string> }> {
+    const storage = await this.storage();
+    const headers = { "content-type": "application/octet-stream", "x-amz-meta-sha256": sha256 };
+    const command = new PutObjectCommand({
+      Bucket: storage.bucket,
+      Key: objectKey,
+      ContentLength: size,
+      ContentType: headers["content-type"],
+      Metadata: { sha256 },
+    });
+    return { url: await getSignedUrl(storage.client as S3Client, command, { expiresIn: 15 * 60 }), headers };
+  }
+
+  async createReadUrl(objectKey: string): Promise<string> {
+    const storage = await this.storage();
+    return getSignedUrl(storage.client as S3Client, new GetObjectCommand({ Bucket: storage.bucket, Key: objectKey }), { expiresIn: 5 * 60 });
   }
 
   private async storage(): Promise<{ bucket: string; client: AwsClient }> {

@@ -177,13 +177,17 @@ export class SupabaseReplayRepository implements ReplayRepository {
   }
 
   async getReplay(id: string, createdBy: string): Promise<RrrocketReplay | undefined> {
+    const objectKey = await this.getReplayObjectKey(id, createdBy);
+    return objectKey ? rrrocketReplaySchema.parse(await this.objects.read(objectKey)) : undefined;
+  }
+
+  async getReplayObjectKey(id: string, createdBy: string): Promise<string | undefined> {
     const row = unwrap(await this.client.from("replays")
       .select("replay_object_key")
       .eq("id", id)
       .eq("created_by", createdBy)
       .maybeSingle(), "get replay object key") as { replay_object_key: string } | null;
-    if (!row) return undefined;
-    return rrrocketReplaySchema.parse(await this.objects.read(row.replay_object_key));
+    return row?.replay_object_key;
   }
 
   async getBundle(id: string, createdBy: string): Promise<ReplayAnalysisBundleV2 | undefined> {

@@ -12,11 +12,18 @@ test("loads, controls, uploads, analyzes, and navigates without browser errors",
   bundle.analysis.teams[0].events[0].findings[0].subject = { displayName: "Alpha" };
   bundle.analysis.teams[0].events[0].findings[0].text += " (1-2s)";
   await page.route("**/input/output.json", route => route.fulfill({ json: replay }));
-  await page.route("**/api/replays", async route => {
+  await page.route("**/api/replay-uploads", async route => {
     expect(route.request().method()).toBe("POST");
-    expect(route.request().headers()["x-replay-filename"]).toBe("match.replay");
-    await route.fulfill({ status: 202, json: { jobId: "job-id", status: "queued", statusUrl: "/api/replay-jobs/job-id" } });
+    expect(route.request().postDataJSON()).toMatchObject({ filename: "match.replay", size: 7 });
+    await route.fulfill({ status: 201, json: {
+      jobId: "job-id", status: "uploading", statusUrl: "/api/replay-jobs/job-id",
+      dispatchUrl: "/api/replay-jobs/job-id/dispatch", uploadUrl: "https://uploads.example/job-id", uploadHeaders: {},
+    } });
   });
+  await page.route("https://uploads.example/job-id", route => route.fulfill({ status: 200 }));
+  await page.route("**/api/replay-jobs/job-id/dispatch", route => route.fulfill({
+    status: 202, json: { jobId: "job-id", status: "processing" },
+  }));
   await page.route("**/api/replay-jobs/job-id", route => route.fulfill({
     json: { jobId: "job-id", status: "completed", result: bundle },
   }));
