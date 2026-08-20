@@ -35,7 +35,7 @@ Apply all Supabase migrations before deployment. The serverless upload flow depe
 Configure these Vercel variables:
 
 - `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for browser authentication.
-- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and server-only `SUPABASE_SECRET_KEY` for API functions.
+- Server-only `SUPABASE_SECRET_KEY` for API functions. `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` may be set explicitly; otherwise the API reuses the corresponding browser-safe `VITE_SUPABASE_*` values.
 - `REPLAY_PARSER_QUEUE_URL`, `REPLAY_PARSER_R2_SECRET_ID`, and `AWS_REGION` for replay processing.
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` with permission to read the configured Secrets Manager secret and send to the parser SQS queue. Do not set `AWS_PROFILE` on Vercel.
 

@@ -52,8 +52,11 @@ function decodePathId(value: string): string | undefined {
 }
 
 export function createServerlessReplayApi(environment: Record<string, string | undefined> = process.env) {
-  const supabaseUrl = required(environment.SUPABASE_URL, "SUPABASE_URL");
-  const publishableKey = required(environment.SUPABASE_PUBLISHABLE_KEY, "SUPABASE_PUBLISHABLE_KEY");
+  const supabaseUrl = required(environment.SUPABASE_URL || environment.VITE_SUPABASE_URL, "SUPABASE_URL or VITE_SUPABASE_URL");
+  const publishableKey = required(
+    environment.SUPABASE_PUBLISHABLE_KEY || environment.VITE_SUPABASE_PUBLISHABLE_KEY,
+    "SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_PUBLISHABLE_KEY",
+  );
   const secretKey = required(environment.SUPABASE_SECRET_KEY, "SUPABASE_SECRET_KEY");
   const queueUrl = required(environment.REPLAY_PARSER_QUEUE_URL, "REPLAY_PARSER_QUEUE_URL");
   const r2SecretId = required(environment.REPLAY_PARSER_R2_SECRET_ID, "REPLAY_PARSER_R2_SECRET_ID");
