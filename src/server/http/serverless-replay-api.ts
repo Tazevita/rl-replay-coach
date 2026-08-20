@@ -145,7 +145,7 @@ export function createServerlessReplayApi(environment: Record<string, string | u
           await jobs.complete(id, createdBy, existing, now);
           return sendJson(response, 200, replayUploadCreatedSchema.parse({ jobId: id, status: "completed", statusUrl }));
         }
-        const signed = await objects.createUploadUrl(sourceObjectKey, upload.size, upload.sha256);
+        const signed = await objects.createUploadUrl(sourceObjectKey, upload.sha256);
         return sendJson(response, 201, replayUploadCreatedSchema.parse({
           jobId: id,
           status: "uploading",

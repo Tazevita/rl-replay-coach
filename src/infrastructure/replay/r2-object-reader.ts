@@ -68,17 +68,22 @@ export class R2ObjectReader implements ReplayObjectReader {
     }
   }
 
-  async createUploadUrl(objectKey: string, size: number, sha256: string): Promise<{ url: string; headers: Record<string, string> }> {
+  async createUploadUrl(objectKey: string, sha256: string): Promise<{ url: string; headers: Record<string, string> }> {
     const storage = await this.storage();
     const headers = { "content-type": "application/octet-stream", "x-amz-meta-sha256": sha256 };
     const command = new PutObjectCommand({
       Bucket: storage.bucket,
       Key: objectKey,
-      ContentLength: size,
       ContentType: headers["content-type"],
       Metadata: { sha256 },
     });
-    return { url: await getSignedUrl(storage.client as S3Client, command, { expiresIn: 15 * 60 }), headers };
+    return {
+      url: await getSignedUrl(storage.client as S3Client, command, {
+        expiresIn: 15 * 60,
+        unhoistableHeaders: new Set(["x-amz-meta-sha256"]),
+      }),
+      headers,
+    };
   }
 
   async createReadUrl(objectKey: string): Promise<string> {
