@@ -3,6 +3,7 @@ import { createClient, type Session } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+const signupsEnabled = import.meta.env.VITE_SIGNUPS_ENABLED?.trim().toLowerCase() === "true";
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : undefined;
 const AUTH_TIMEOUT_MS = 15_000;
 
@@ -74,6 +75,11 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
         setMode("sign-in");
         return;
       }
+      if (mode === "sign-up" && !signupsEnabled) {
+        setMode("sign-in");
+        setMessage("New account registration is temporarily closed.");
+        return;
+      }
       const request = mode === "sign-in"
         ? supabase.auth.signInWithPassword({ email, password })
         : supabase.auth.signUp({ email, password });
@@ -107,7 +113,8 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
             : mode === "forgot-password" ? "Send reset link"
               : "Save new password"}</button>
       {mode === "sign-in" && <button className="auth-switch" type="button" onClick={() => { setMode("forgot-password"); setMessage(undefined); }}>Forgot password?</button>}
-      {mode !== "reset-password" && <button className="auth-switch" type="button" onClick={() => { setMode(mode === "sign-up" ? "sign-in" : mode === "sign-in" ? "sign-up" : "sign-in"); setMessage(undefined); }}>
+      {mode === "sign-in" && !signupsEnabled && <p className="auth-registration-closed">New account registration is temporarily closed.</p>}
+      {mode !== "reset-password" && (mode !== "sign-in" || signupsEnabled) && <button className="auth-switch" type="button" onClick={() => { setMode(mode === "sign-up" ? "sign-in" : mode === "sign-in" ? "sign-up" : "sign-in"); setMessage(undefined); }}>
         {mode === "sign-up" ? "Already have an account? Sign in" : mode === "sign-in" ? "Need an account? Sign up" : "Back to sign in"}
       </button>}
     </form>

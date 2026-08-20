@@ -12,8 +12,18 @@ import { PlaybackControls } from "./PlaybackControls";
 import { GhostCarSettings, GoalList, PlayerSidebar, PlayerTracker } from "./PlayerSidebar";
 import { ReplayToolbar, Scoreboard, UploadControl, ViewSelector } from "./ReplayToolbar";
 import { useReplayKeyboard } from "../hooks/use-replay-keyboard";
+import { AuthGate } from "./AuthGate";
 
 afterEach(cleanup);
+
+describe("authentication", () => {
+  it("keeps account registration closed by default", async () => {
+    render(<AuthGate>{() => <div>Authenticated</div>}</AuthGate>);
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeVisible();
+    expect(screen.getByText("New account registration is temporarily closed.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /sign up/i })).not.toBeInTheDocument();
+  });
+});
 
 const metadata: ReplayMetadata = {
   mapName: "DFH <script>alert(1)</script>",
