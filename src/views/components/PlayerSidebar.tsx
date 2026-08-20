@@ -17,6 +17,7 @@ interface PlayerSidebarProps {
   onGhostCarsEnabled(enabled: boolean): void;
   onGhostHorizon(horizon: PredictionHorizon): void;
   onGhostPlayers(playerIds: readonly string[]): void;
+  showGhosts?: boolean;
 }
 
 export function PlayerSidebar(props: PlayerSidebarProps) {
@@ -28,7 +29,7 @@ export function PlayerSidebar(props: PlayerSidebarProps) {
         <span className="live-dot">LIVE POSITIONS</span>
       </div>
       <PlayerTracker players={props.players} selected={props.trackedPlayerKey} onChange={props.onTrackPlayer} />
-      <GhostCarSettings
+      {props.showGhosts !== false && <GhostCarSettings
         players={props.predictionPlayers}
         enabled={props.ghostCarsEnabled}
         horizon={props.ghostHorizon}
@@ -36,7 +37,7 @@ export function PlayerSidebar(props: PlayerSidebarProps) {
         onEnabled={props.onGhostCarsEnabled}
         onHorizon={props.onGhostHorizon}
         onPlayers={props.onGhostPlayers}
-      />
+      />}
       <div className="players">
         {cars.length ? cars.map(car => <div className="player" key={car.id}>
           <span className="player-swatch" style={{ background: car.team === 0 ? "#2864dc" : "#e96f2d" }} />

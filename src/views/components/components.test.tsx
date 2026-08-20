@@ -6,7 +6,7 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TeamAnalysis } from "../../shared/contracts/replay-analysis-v2";
 import type { ReplayMetadata } from "../../replay/types";
-import { AnalysisPanel, predictionHorizonFrom } from "./AnalysisPanel";
+import { AnalysisPanel, calculateWhoThrew, predictionHorizonFrom } from "./AnalysisPanel";
 import { LoadingOverlay } from "./LoadingOverlay";
 import { PlaybackControls } from "./PlaybackControls";
 import { GhostCarSettings, GoalList, PlayerSidebar, PlayerTracker } from "./PlayerSidebar";
@@ -139,6 +139,12 @@ describe("playback and players", () => {
     expect(screen.getByText("Alpha")).toBeVisible();
   });
 
+  it("can hide all ghost controls while retaining player tracking", () => {
+    render(<PlayerSidebar state={{ frameIndex: 0, ball: null, cars: [] }} players={[{ key: "0:Alpha", name: "Alpha", team: 0 }]} trackedPlayerKey={null} goals={[]} onTrackPlayer={vi.fn()} onGoal={vi.fn()} predictionPlayers={[]} ghostCarsEnabled={false} ghostHorizon="0-1" selectedGhostPlayerIds={[]} onGhostCarsEnabled={vi.fn()} onGhostHorizon={vi.fn()} onGhostPlayers={vi.fn()} showGhosts={false} />);
+    expect(screen.getByLabelText("Auto track player")).toBeVisible();
+    expect(screen.queryByRole("checkbox", { name: "Enable ghost cars" })).not.toBeInTheDocument();
+  });
+
   it("enables ghosts, changes timeframe, and selects any number of players", async () => {
     const enabled = vi.fn();
     const horizon = vi.fn();
@@ -160,6 +166,44 @@ describe("playback and players", () => {
 });
 
 describe("analysis", () => {
+  it("selects the losing team's most frequent mistake contributor and calculates fault per goal", () => {
+    const losing = team("orange");
+    const mistake = losing.events[0].findings[0];
+    const bravoSecond = { ...mistake, id: "bravo-second" };
+    const other = { ...mistake, id: "other", subject: { displayName: "Charlie" }, text: "Charlie's mistake" };
+    losing.events[0].findings = [mistake, bravoSecond, other];
+    losing.events.push({
+      ...losing.events[0], id: "orange-conceded-2", ordinal: 2,
+      findings: [{ ...other, id: "other-second" }],
+    });
+
+    const result = calculateWhoThrew([team("blue"), losing]);
+
+    expect(result?.player.displayName).toBe("Bravo");
+    expect(result?.mistakeCount).toBe(2);
+    expect(result?.goals.map(goal => goal.faultPercent)).toEqual([67, 0]);
+    expect(result?.averageFaultPercent).toBe(34);
+  });
+
+  it("only renders the thrower's mistakes in focused mode", () => {
+    const losing = team("orange");
+    const bravo = losing.events[0].findings[0];
+    losing.events[0].findings = [
+      bravo,
+      { ...bravo, id: "bravo-second", text: "Bravo repeated the mistake" },
+      { ...bravo, id: "charlie", subject: { displayName: "Charlie" }, text: "Charlie made another mistake" },
+    ];
+
+    render(<AnalysisPanel teams={[team("blue"), losing]} processing={false} uploadError={null} mode="who-threw" onNavigate={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Bravo" })).toBeVisible();
+    expect(screen.getAllByText("67%")).toHaveLength(2);
+    expect(screen.getByText("Bravo repeated the mistake")).toBeVisible();
+    expect(screen.queryByText("Charlie made another mistake")).not.toBeInTheDocument();
+    expect(screen.queryByText("Blue <unsafe> team")).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Auto-switch ghost" })).not.toBeInTheDocument();
+  });
+
   it("orders replay mistakes by descending score without mutating the analysis", () => {
     const analysis = team("blue");
     const lowerScore = analysis.events[0].findings[0];

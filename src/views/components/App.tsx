@@ -12,7 +12,8 @@ import type { PredictionHorizon } from "../../replay/predictions";
 import { formatGameClock } from "../../replay/metadata";
 import type { PlayerMistakesGateway } from "../../adapters/http/player-mistakes-gateway";
 
-export function App({ controller, mistakesGateway }: { controller: ReplayViewerController; mistakesGateway: PlayerMistakesGateway }) {
+export function App({ controller, mistakesGateway, mode = "teams" }: { controller: ReplayViewerController; mistakesGateway: PlayerMistakesGateway; mode?: "teams" | "who-threw" }) {
+  const whoThrew = mode === "who-threw";
   const state = useReplayViewerController(controller);
   const fieldPanel = useRef<HTMLDivElement>(null);
   const [ghostCarsEnabled, setGhostCarsEnabled] = useState(false);
@@ -55,6 +56,7 @@ export function App({ controller, mistakesGateway }: { controller: ReplayViewerC
       metadata={state.metadata}
       view={state.view}
       processing={state.processing}
+      whoThrew={whoThrew}
       onUpload={file => controller.uploadReplay({ name: file.name, content: file })}
       onViewChange={view => controller.setView(view)}
     />
@@ -68,7 +70,7 @@ export function App({ controller, mistakesGateway }: { controller: ReplayViewerC
             players={state.players}
             replayActors={state.replayActors}
             ghostPredictions={state.playerPredictions}
-            ghostCarsEnabled={ghostCarsEnabled}
+            ghostCarsEnabled={!whoThrew && ghostCarsEnabled}
             ghostHorizon={ghostHorizon}
             selectedGhostPlayerIds={selectedGhostPlayers}
           />
@@ -102,12 +104,14 @@ export function App({ controller, mistakesGateway }: { controller: ReplayViewerC
         onGhostCarsEnabled={setGhostCarsEnabled}
         onGhostHorizon={setGhostHorizon}
         onGhostPlayers={setSelectedGhostPlayerIds}
+        showGhosts={!whoThrew}
       />
     </section>
     <AnalysisPanel
       teams={state.analysis}
       processing={state.processing}
       uploadError={state.error?.operation === "upload" ? state.error.message : null}
+      mode={mode}
       replayId={state.replayId}
       mistakesGateway={mistakesGateway}
       onNavigate={navigateToSourceTime}

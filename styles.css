@@ -223,6 +223,18 @@ kbd { padding: 2px 5px; border: 1px solid #d8dce4; border-bottom-color: #c7ccd6;
 .finding-explanation-action > span { color: #b84444; font-size: 9px; }
 .analysis-note { padding: 5px 8px; color: var(--muted); font-size: 9px; line-height: 1.4; }
 .analysis-empty { margin: 0; padding: 16px 14px; color: var(--muted); font-size: 11px; }
+.who-threw-report { max-width: 860px; margin: 0 auto; }
+.who-threw-summary { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, #fff7f1, #fff 62%); }
+.who-threw-summary h3 { margin: 0; font-size: clamp(28px, 5vw, 48px); line-height: 1; letter-spacing: -.05em; }
+.who-threw-summary > div > span { display: block; margin-top: 8px; color: var(--muted); font-size: 11px; }
+.fault-average { min-width: 150px; text-align: right; }
+.fault-average strong { display: block; color: var(--orange); font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; }
+.fault-average span { max-width: 150px; margin-left: auto; line-height: 1.35; }
+.who-threw-report .analysis-goal { grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; }
+.goal-fault { display: grid; justify-items: end; }
+.goal-fault strong { color: var(--orange); font-size: 20px; font-variant-numeric: tabular-nums; }
+.goal-fault small { color: var(--muted); font-size: 8px; }
+.who-threw-empty { margin: 0; padding: 36px 20px; border: 1px dashed var(--line-strong); border-radius: 13px; color: var(--muted); text-align: center; }
 .renderer-error { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; background: #fff7f7; color: #b84444; text-align: center; }
 
 .check-player-page { width: min(1120px, 100%); padding-top: 52px; }
@@ -367,6 +379,10 @@ kbd { padding: 2px 5px; border: 1px solid #d8dce4; border-bottom-color: #c7ccd6;
   .analysis-heading-meta { justify-items: start; }
   .analysis-heading-meta > span { text-align: left; }
   .analysis-finding { grid-template-columns: 66px minmax(0, 1fr); }
+  .who-threw-summary { align-items: flex-start; flex-direction: column; }
+  .fault-average { text-align: left; }
+  .fault-average span { margin-left: 0; }
+  .who-threw-report .analysis-goal { grid-template-columns: 58px minmax(0, 1fr) auto; }
   .finding-comparison { grid-template-columns: 1fr; }
   .finding-explanation-action { margin-left: 83px; }
   .check-player-page { padding-top: 18px; }

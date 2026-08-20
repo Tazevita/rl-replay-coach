@@ -40,7 +40,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
     ? <CheckPlayerPage gateway={mistakesGateway} />
     : path === "/replay-history"
       ? <ReplayHistoryPage gateway={historyGateway} />
-      : <App mistakesGateway={mistakesGateway} controller={controller} />;
+      : <App mistakesGateway={mistakesGateway} controller={controller} mode={path === "/who-threw" ? "who-threw" : "teams"} />;
 }
 
 createRoot(root).render(<StrictMode><AuthGate>{session => <AuthenticatedApp session={session} />}</AuthGate></StrictMode>);
