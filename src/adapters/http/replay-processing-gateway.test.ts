@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { validBundle } from "../../test/fixtures";
 import { HttpReplayProcessingGateway } from "./replay-processing-gateway";
 
 describe("HttpReplayProcessingGateway", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("polls an accepted job until it completes", async () => {
     const request = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -35,6 +37,26 @@ describe("HttpReplayProcessingGateway", () => {
     await expect(new HttpReplayProcessingGateway(0, async () => undefined, request, upload)
       .process({ name: "match.replay", content: new Blob(["replay"]) }))
       .rejects.toThrow("Replay is malformed.");
+  });
+
+  it("invokes the native upload fetch with the browser global receiver", async () => {
+    const request = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        jobId: "job-id", status: "uploading", statusUrl: "/api/replay-jobs/job-id",
+        dispatchUrl: "/api/replay-jobs/job-id/dispatch", uploadUrl: "https://uploads.example/job-id", uploadHeaders: {},
+      }), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ jobId: "job-id", status: "processing" }), { status: 202 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ jobId: "job-id", status: "completed", result: validBundle() }), { status: 200 }));
+    const upload = vi.fn(function(this: unknown) {
+      expect(this).toBe(globalThis);
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+    vi.stubGlobal("fetch", upload);
+
+    await new HttpReplayProcessingGateway(0, async () => undefined, request)
+      .process({ name: "match.replay", content: new Blob(["replay"]) });
+
+    expect(upload).toHaveBeenCalledOnce();
   });
 
   it("falls back to the local streamed upload endpoint", async () => {

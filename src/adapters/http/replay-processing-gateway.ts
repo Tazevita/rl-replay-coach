@@ -4,12 +4,14 @@ import { replayJobCreatedSchema } from "../../shared/contracts/replay-job";
 import { replayUploadCreatedSchema } from "../../shared/contracts/replay-upload";
 import type { ReplayProcessingGateway, ReplayUpload } from "../../application/controllers/replay-viewer-controller";
 
+const defaultFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
+
 export class HttpReplayProcessingGateway implements ReplayProcessingGateway {
   constructor(
     private readonly pollIntervalMs = 1_000,
     private readonly sleep: (milliseconds: number) => Promise<void> = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
-    private readonly request: typeof fetch = fetch,
-    private readonly uploadRequest: typeof fetch = fetch,
+    private readonly request: typeof fetch = defaultFetch,
+    private readonly uploadRequest: typeof fetch = defaultFetch,
   ) {}
 
   async process(upload: ReplayUpload): Promise<ReplayAnalysisBundleV2> {
