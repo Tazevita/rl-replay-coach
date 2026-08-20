@@ -130,14 +130,14 @@ export class SupabaseReplayJobRepository implements ReplayJobRepository {
 
   async complete(id: string, createdBy: string, result: ReplayAnalysisBundleV2, updatedAt: string): Promise<void> {
     assertSuccess(await this.client.from("replay_jobs")
-      .update({ status: "completed", result, error: null, finalization_lease_at: null, updated_at: updatedAt })
+      .update({ status: "completed", result, error: null, updated_at: updatedAt })
       .eq("id", id)
       .eq("created_by", createdBy), "complete replay job");
   }
 
   async fail(id: string, createdBy: string, error: string, updatedAt: string): Promise<void> {
     assertSuccess(await this.client.from("replay_jobs")
-      .update({ status: "failed", result: null, error, dispatch_lease_at: null, finalization_lease_at: null, updated_at: updatedAt })
+      .update({ status: "failed", result: null, error, updated_at: updatedAt })
       .eq("id", id)
       .eq("created_by", createdBy), "fail replay job");
   }
