@@ -10,6 +10,7 @@ import { ReplayAnalysisRunnerJsonAdapter } from "../infrastructure/analysis/repl
 import { StoredReplayAnalysisJsonAdapter } from "../infrastructure/analysis/stored-replay-analysis-json-adapter";
 import { OpenAiMistakeExplanationProvider } from "../infrastructure/ai/openai-mistake-explanation-provider";
 import { OpenAiPlayerWeaknessesProvider } from "../infrastructure/ai/openai-player-weaknesses-provider";
+import { awsCredentialOptions } from "../infrastructure/aws-credentials";
 import { RrrocketProcessAdapter } from "../infrastructure/replay/rrrocket-process-adapter";
 import { LambdaReplayParser } from "../infrastructure/replay/lambda-replay-parser";
 import { R2ObjectReader } from "../infrastructure/replay/r2-object-reader";
@@ -37,7 +38,7 @@ export function composeReplayApi(
     throw new Error("SUPABASE_SECRET_KEY and REPLAY_PARSER_R2_SECRET_ID are required for replay persistence.");
   }
   const awsRegion = environment.AWS_REGION?.trim() || "us-east-2";
-  const awsProfile = environment.AWS_PROFILE?.trim() || undefined;
+  const aws = awsCredentialOptions(environment);
   const authClient = createClient(supabaseUrl, supabasePublishableKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
@@ -47,7 +48,7 @@ export function composeReplayApi(
   const repository = new SupabaseReplayRepository(supabase, new R2ObjectReader({
     secretId: parserSecretId,
     region: awsRegion,
-    profile: awsProfile,
+    ...aws,
   }));
   const jobs = new SupabaseReplayJobRepository(supabase);
   const parser = parserQueueUrl && parserSecretId
@@ -55,7 +56,7 @@ export function composeReplayApi(
         queueUrl: parserQueueUrl,
         secretId: parserSecretId,
         region: awsRegion,
-        profile: awsProfile,
+        ...aws,
         timeoutMs: Number(environment.REPLAY_PARSER_TIMEOUT_MS) || undefined,
         analysisTimeoutMs: Number(environment.REPLAY_ANALYSIS_TIMEOUT_MS) || undefined,
         pollIntervalMs: Number(environment.REPLAY_PARSER_POLL_INTERVAL_MS) || undefined,

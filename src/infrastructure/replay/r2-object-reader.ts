@@ -2,6 +2,7 @@ import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from 
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { fromIni } from "@aws-sdk/credential-providers";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import type { StaticAwsCredentials } from "../aws-credentials";
 
 interface AwsClient {
   send(command: unknown): Promise<any>;
@@ -15,6 +16,7 @@ export interface R2ObjectReaderOptions {
   secretId: string;
   region?: string;
   profile?: string;
+  credentials?: StaticAwsCredentials;
   secretsClient?: AwsClient;
   createStorageClient?: (config: {
     endpoint: string;
@@ -38,7 +40,7 @@ export class R2ObjectReader implements ReplayObjectReader {
   private storagePromise?: Promise<{ bucket: string; client: AwsClient }>;
 
   constructor(private readonly options: R2ObjectReaderOptions) {
-    const credentials = options.profile ? fromIni({ profile: options.profile }) : undefined;
+    const credentials = options.credentials ?? (options.profile ? fromIni({ profile: options.profile }) : undefined);
     this.secrets = options.secretsClient ?? new SecretsManagerClient({ region: options.region, credentials });
   }
 

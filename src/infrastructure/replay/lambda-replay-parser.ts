@@ -11,6 +11,7 @@ import { fromIni } from "@aws-sdk/credential-providers";
 import type { ParsedReplay, ReplayParser } from "../../application/ports";
 import { replayParserJobSchema } from "../../shared/contracts/replay-parser-job";
 import { rrrocketReplaySchema } from "../../shared/contracts/rrrocket";
+import type { StaticAwsCredentials } from "../aws-credentials";
 
 interface AwsClient {
   send(command: unknown): Promise<any>;
@@ -26,6 +27,7 @@ export interface LambdaReplayParserOptions {
   secretId: string;
   region?: string;
   profile?: string;
+  credentials?: StaticAwsCredentials;
   timeoutMs?: number;
   analysisTimeoutMs?: number;
   pollIntervalMs?: number;
@@ -58,7 +60,7 @@ export class LambdaReplayParser implements ReplayParser {
   private storagePromise?: Promise<Storage>;
 
   constructor(private readonly options: LambdaReplayParserOptions) {
-    const credentials = options.profile ? fromIni({ profile: options.profile }) : undefined;
+    const credentials = options.credentials ?? (options.profile ? fromIni({ profile: options.profile }) : undefined);
     this.queue = options.queueClient ?? new SQSClient({ region: options.region, credentials });
     this.secrets = options.secretsClient ?? new SecretsManagerClient({ region: options.region, credentials });
   }

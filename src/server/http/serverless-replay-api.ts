@@ -9,6 +9,7 @@ import { AnalyzePlayerWeaknesses } from "../../application/analyze-player-weakne
 import { ExplainMistake } from "../../application/explain-mistake";
 import { OpenAiMistakeExplanationProvider } from "../../infrastructure/ai/openai-mistake-explanation-provider";
 import { OpenAiPlayerWeaknessesProvider } from "../../infrastructure/ai/openai-player-weaknesses-provider";
+import { awsCredentialOptions } from "../../infrastructure/aws-credentials";
 import { R2ObjectReader } from "../../infrastructure/replay/r2-object-reader";
 import { SupabaseReplayJobRepository } from "../../infrastructure/replay/supabase-replay-job-repository";
 import { SupabaseReplayRepository } from "../../infrastructure/replay/supabase-replay-repository";
@@ -61,8 +62,8 @@ export function createServerlessReplayApi(environment: Record<string, string | u
   const queueUrl = required(environment.REPLAY_PARSER_QUEUE_URL, "REPLAY_PARSER_QUEUE_URL");
   const r2SecretId = required(environment.REPLAY_PARSER_R2_SECRET_ID, "REPLAY_PARSER_R2_SECRET_ID");
   const awsRegion = environment.AWS_REGION?.trim() || "us-east-2";
-  const awsProfile = environment.AWS_PROFILE?.trim() || undefined;
-  const credentials = awsProfile ? fromIni({ profile: awsProfile }) : undefined;
+  const aws = awsCredentialOptions(environment);
+  const credentials = aws.credentials ?? (aws.profile ? fromIni({ profile: aws.profile }) : undefined);
   const queue = new SQSClient({ region: awsRegion, credentials });
   const authClient = createClient(supabaseUrl, publishableKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -70,7 +71,7 @@ export function createServerlessReplayApi(environment: Record<string, string | u
   const supabase = createClient(supabaseUrl, secretKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const objects = new R2ObjectReader({ secretId: r2SecretId, region: awsRegion, profile: awsProfile });
+  const objects = new R2ObjectReader({ secretId: r2SecretId, region: awsRegion, ...aws });
   const repository = new SupabaseReplayRepository(supabase, objects);
   const jobs = new SupabaseReplayJobRepository(supabase);
   const finalizer = new FinalizeReplayUpload({
