@@ -8,6 +8,7 @@
   },
   "rewrites": [
     { "source": "/check-player", "destination": "/index.html" },
-    { "source": "/replay-history", "destination": "/index.html" }
+    { "source": "/replay-history", "destination": "/index.html" },
+    { "source": "/who-threw", "destination": "/index.html" }
   ]
 }
