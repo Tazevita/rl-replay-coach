@@ -2,7 +2,7 @@
   "framework": "vite",
   "buildCommand": "npm run vercel-build",
   "functions": {
-    "api/[...path].js": {
+    "api/**/*.js": {
       "maxDuration": 60
     }
   },
