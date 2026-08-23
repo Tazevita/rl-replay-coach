@@ -35,7 +35,7 @@ export class CanvasReplayRenderer implements ReplayRenderer {
     this.context.save();
     this.drawField(layout);
     for (const car of state.cars) this.drawCar(car, layout);
-    for (const car of _context.ghostCars) this.drawCar(car, layout, true);
+    for (const car of _context.projectedCars) this.drawCar(car, layout, true);
     this.drawBall(state.ball, layout);
     this.context.restore();
   }
@@ -143,7 +143,7 @@ export class CanvasReplayRenderer implements ReplayRenderer {
     context.strokeRect(x - goalDepth, cy - goalWidth / 2, goalDepth, goalWidth);
   }
 
-  private drawCar(car: Pick<ReplayCar, "x" | "y" | "name" | "team" | "yaw">, layout: FieldLayout, ghost = false): void {
+  private drawCar(car: Pick<ReplayCar, "x" | "y" | "name" | "team" | "yaw">, layout: FieldLayout, projected = false): void {
     const context = this.context;
     const point = this.point(car.x, car.y, layout);
     const length = Math.max(16, 310 * layout.scale);
@@ -151,10 +151,10 @@ export class CanvasReplayRenderer implements ReplayRenderer {
     context.save();
     context.translate(point.x, point.y);
     context.rotate(car.yaw - Math.PI / 2);
-    context.globalAlpha = ghost ? 0.34 : 1;
-    context.shadowColor = ghost ? (car.team === 0 ? BLUE : ORANGE) : "rgba(0,0,0,.55)";
-    context.shadowBlur = ghost ? 20 : 8;
-    context.shadowOffsetY = ghost ? 0 : 4;
+    context.globalAlpha = projected ? 0.34 : 1;
+    context.shadowColor = projected ? (car.team === 0 ? BLUE : ORANGE) : "rgba(0,0,0,.55)";
+    context.shadowBlur = projected ? 20 : 8;
+    context.shadowOffsetY = projected ? 0 : 4;
     this.roundedRect(-length / 2, -width / 2, length, width, width * 0.28);
     context.fillStyle = car.team === 0 ? BLUE : ORANGE;
     context.fill();

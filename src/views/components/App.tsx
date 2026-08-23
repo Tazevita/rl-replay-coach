@@ -16,13 +16,13 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
   const whoThrew = mode === "who-threw";
   const state = useReplayViewerController(controller);
   const fieldPanel = useRef<HTMLDivElement>(null);
-  const [ghostCarsEnabled, setGhostCarsEnabled] = useState(false);
-  const [ghostHorizon, setGhostHorizon] = useState<PredictionHorizon>("0-1");
-  const [selectedGhostPlayerIds, setSelectedGhostPlayerIds] = useState<readonly string[]>([]);
-  const selectedGhostPlayers = useMemo(() => new Set(selectedGhostPlayerIds), [selectedGhostPlayerIds]);
+  const [projectedCarsEnabled, setProjectedCarsEnabled] = useState(false);
+  const [projectedHorizon, setProjectedHorizon] = useState<PredictionHorizon>("0-1");
+  const [selectedProjectedPlayerIds, setSelectedProjectedPlayerIds] = useState<readonly string[]>([]);
+  const selectedProjectedPlayers = useMemo(() => new Set(selectedProjectedPlayerIds), [selectedProjectedPlayerIds]);
   const predictionPlayerKey = state.playerPredictions.players.map(player => player.id).join("\0");
   useEffect(() => {
-    setSelectedGhostPlayerIds(state.playerPredictions.players.map(player => player.id));
+    setSelectedProjectedPlayerIds(state.playerPredictions.players.map(player => player.id));
   }, [predictionPlayerKey]);
   useReplayKeyboard({
     enabled: Boolean(state.metadata),
@@ -42,10 +42,10 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
       const replayPlayer = state.players.find(player =>
         (subject.playerId && player.key === subject.playerId)
         || (player.team === team && player.name.trim().toLocaleLowerCase() === playerName));
-      if (options.autoGhost) {
-        setGhostCarsEnabled(true);
-        if (prediction) setSelectedGhostPlayerIds([prediction.id]);
-        if (options.ghostHorizon) setGhostHorizon(options.ghostHorizon);
+      if (options.autoProjection) {
+        setProjectedCarsEnabled(true);
+        if (prediction) setSelectedProjectedPlayerIds([prediction.id]);
+        if (options.projectedHorizon) setProjectedHorizon(options.projectedHorizon);
       }
       if (options.autoCamera && replayPlayer) controller.setTrackedPlayer(replayPlayer.key);
     }
@@ -73,10 +73,10 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
             trackedPlayerKey={state.trackedPlayerKey}
             players={state.players}
             replayActors={state.replayActors}
-            ghostPredictions={state.playerPredictions}
-            ghostCarsEnabled={!whoThrew && ghostCarsEnabled}
-            ghostHorizon={ghostHorizon}
-            selectedGhostPlayerIds={selectedGhostPlayers}
+            projectedPredictions={state.playerPredictions}
+            projectedCarsEnabled={!whoThrew && projectedCarsEnabled}
+            projectedHorizon={projectedHorizon}
+            selectedProjectedPlayerIds={selectedProjectedPlayers}
           />
           <Scoreboard metadata={state.metadata} clock={formatGameClock(state.currentSnapshot ?? undefined)} overlay />
           <LoadingOverlay loading={state.loading} processing={state.processing} error={state.error} hasReplay={Boolean(state.metadata)} />
@@ -100,13 +100,13 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
         trackedPlayerKey={state.trackedPlayerKey}
         onTrackPlayer={key => controller.setTrackedPlayer(key)}
         predictionPlayers={state.playerPredictions.players}
-        ghostCarsEnabled={ghostCarsEnabled}
-        ghostHorizon={ghostHorizon}
-        selectedGhostPlayerIds={selectedGhostPlayerIds}
-        onGhostCarsEnabled={setGhostCarsEnabled}
-        onGhostHorizon={setGhostHorizon}
-        onGhostPlayers={setSelectedGhostPlayerIds}
-        showGhosts={!whoThrew}
+        projectedCarsEnabled={projectedCarsEnabled}
+        projectedHorizon={projectedHorizon}
+        selectedProjectedPlayerIds={selectedProjectedPlayerIds}
+        onProjectedCarsEnabled={setProjectedCarsEnabled}
+        onProjectedHorizon={setProjectedHorizon}
+        onProjectedPlayers={setSelectedProjectedPlayerIds}
+        showProjections={!whoThrew}
       />
     </section>
     <AnalysisPanel

@@ -3,7 +3,7 @@ import { Edges, OrbitControls } from "@react-three/drei";
 import { type ComponentRef, type MutableRefObject, memo, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { ReplayViewerController } from "../../application/controllers/replay-viewer-controller";
-import { ghostCarsAt, type PredictionHorizon } from "../../replay/predictions";
+import { projectedCarsAt, type PredictionHorizon } from "../../replay/predictions";
 import { playerKey, replayActorKey } from "../../replay/timeline";
 import type { PlayerPredictions } from "../../shared/contracts/replay-analysis-v2";
 import type { InterpolatedReplayState, ReplayCar, Vector3Data } from "../../replay/types";
@@ -26,13 +26,13 @@ interface ThreeReplayViewportProps {
   replayActors: readonly ReplayCar[];
   autoCamera: boolean;
   trackedPlayerKey: string | null;
-  ghostPredictions: PlayerPredictions;
-  ghostCarsEnabled: boolean;
-  ghostHorizon: PredictionHorizon;
-  selectedGhostPlayerIds: ReadonlySet<string>;
+  projectedPredictions: PlayerPredictions;
+  projectedCarsEnabled: boolean;
+  projectedHorizon: PredictionHorizon;
+  selectedProjectedPlayerIds: ReadonlySet<string>;
 }
 
-interface GhostActor {
+interface ProjectedActor {
   id: string;
   name: string;
   team: number;
@@ -58,7 +58,7 @@ function ReplayScene(props: ThreeReplayViewportProps) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   const camera = useThree(root => root.camera);
   const cars = useRef(new Map<string, THREE.Group>());
-  const ghosts = useRef(new Map<string, THREE.Group>());
+  const projectedCars = useRef(new Map<string, THREE.Group>());
   const ball = useRef<THREE.Mesh>(null);
   const target = useRef(new THREE.Vector3());
   const position = useRef(new THREE.Vector3());
@@ -68,12 +68,12 @@ function ReplayScene(props: ThreeReplayViewportProps) {
   const autoInteracting = useRef(false);
   const wasAuto = useRef(false);
   const lastCameraReset = useRef(-1);
-  const ghostActors = useMemo<GhostActor[]>(() => {
-    if (!props.ghostCarsEnabled) return [];
-    return props.ghostPredictions.players
-      .filter(player => props.selectedGhostPlayerIds.has(player.id))
+  const projectedActors = useMemo<ProjectedActor[]>(() => {
+    if (!props.projectedCarsEnabled) return [];
+    return props.projectedPredictions.players
+      .filter(player => props.selectedProjectedPlayerIds.has(player.id))
       .map(player => ({ id: player.id, name: player.displayName, team: player.team === "blue" ? 0 : 1 }));
-  }, [props.ghostCarsEnabled, props.ghostPredictions, props.selectedGhostPlayerIds]);
+  }, [props.projectedCarsEnabled, props.projectedPredictions, props.selectedProjectedPlayerIds]);
 
   useFrame((_, delta) => {
     if (!active) {
@@ -93,15 +93,15 @@ function ReplayScene(props: ThreeReplayViewportProps) {
       setReplayTransform(object, car);
     }
 
-    for (const object of ghosts.current.values()) object.visible = false;
-    if (props.ghostCarsEnabled) {
-      const currentGhosts = ghostCarsAt(props.ghostPredictions, snapshot.playhead, props.ghostHorizon, props.selectedGhostPlayerIds);
-      for (const ghost of currentGhosts) {
-        const object = ghosts.current.get(ghost.id);
+    for (const object of projectedCars.current.values()) object.visible = false;
+    if (props.projectedCarsEnabled) {
+      const currentProjectedCars = projectedCarsAt(props.projectedPredictions, snapshot.playhead, props.projectedHorizon, props.selectedProjectedPlayerIds);
+      for (const projectedCar of currentProjectedCars) {
+        const object = projectedCars.current.get(projectedCar.id);
         if (!object) continue;
         object.visible = true;
-        object.position.set(ghost.x * WORLD_SCALE, ghost.z * WORLD_SCALE, ghost.y * WORLD_SCALE);
-        object.rotation.set(0, -ghost.yaw, 0);
+        object.position.set(projectedCar.x * WORLD_SCALE, projectedCar.z * WORLD_SCALE, projectedCar.y * WORLD_SCALE);
+        object.rotation.set(0, -projectedCar.yaw, 0);
       }
     }
 
@@ -146,7 +146,7 @@ function ReplayScene(props: ThreeReplayViewportProps) {
     <fog attach="fog" args={["#07100e", 115, 220]} />
     <Arena />
     {replayActors.map(car => <ReplayCarVisual key={replayActorKey(car)} car={car} registry={cars} />)}
-    {ghostActors.map(car => <GhostCarVisual key={car.id} car={car} registry={ghosts} />)}
+    {projectedActors.map(car => <ProjectedCarVisual key={car.id} car={car} registry={projectedCars} />)}
     <mesh ref={ball} castShadow visible={false}>
       <icosahedronGeometry args={[0.92, 3]} />
       <meshStandardMaterial color="#e5e8e7" roughness={0.48} />
@@ -203,7 +203,7 @@ function ReplayCarVisual({ car, registry }: { car: ReplayCar; registry: MutableR
   </group>;
 }
 
-function GhostCarVisual({ car, registry }: { car: GhostActor; registry: MutableRefObject<Map<string, THREE.Group>> }) {
+function ProjectedCarVisual({ car, registry }: { car: ProjectedActor; registry: MutableRefObject<Map<string, THREE.Group>> }) {
   const ref = useRef<THREE.Group>(null);
   useEffect(() => {
     const object = ref.current;

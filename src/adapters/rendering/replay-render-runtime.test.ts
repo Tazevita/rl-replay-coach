@@ -27,7 +27,7 @@ describe("ReplayRenderRuntime", () => {
       createRenderer: () => renderer,
       getFrame: deltaSeconds => ({
         state: { cars: [], ball: null, frameIndex: 0 },
-        context: { deltaSeconds, autoCamera: false, trackedPlayerKey: null, ghostCars: [] },
+        context: { deltaSeconds, autoCamera: false, trackedPlayerKey: null, projectedCars: [] },
       }),
       onError: vi.fn(),
     });
@@ -54,7 +54,7 @@ describe("ReplayRenderRuntime", () => {
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
     const getFrame = vi.fn(deltaSeconds => ({
       state: { cars: [], ball: null, frameIndex: 0 },
-      context: { deltaSeconds, autoCamera: false, trackedPlayerKey: null, ghostCars: [] },
+      context: { deltaSeconds, autoCamera: false, trackedPlayerKey: null, projectedCars: [] },
     }));
     const runtime = new ReplayRenderRuntime(document.createElement("div"), {
       canvasLabel: "Replay canvas",

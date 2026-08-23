@@ -9,7 +9,7 @@ import type { ReplayMetadata } from "../../replay/types";
 import { AnalysisPanel, calculateWhoThrew, predictionHorizonFrom } from "./AnalysisPanel";
 import { LoadingOverlay } from "./LoadingOverlay";
 import { PlaybackControls } from "./PlaybackControls";
-import { GhostCarSettings, PlayerSidebar, PlayerTracker } from "./PlayerSidebar";
+import { PlayerSidebar, PlayerTracker, ProjectedCarSettings } from "./PlayerSidebar";
 import { ReplayToolbar, Scoreboard, UploadControl, ViewSelector } from "./ReplayToolbar";
 import { useReplayKeyboard } from "../hooks/use-replay-keyboard";
 import { areSignupsEnabled } from "./AuthGate";
@@ -139,17 +139,17 @@ describe("playback and players", () => {
   });
 
   it("renders live player details", () => {
-    render(<PlayerSidebar state={{ frameIndex: 4, ball: { x: 0, y: 0, z: 250 }, cars: [{ id: 1, name: "Alpha", team: 0, x: 0, y: 0, z: 100, yaw: 0, rotation: null }] }} players={[]} trackedPlayerKey={null} onTrackPlayer={vi.fn()} predictionPlayers={[]} ghostCarsEnabled={false} ghostHorizon="0-1" selectedGhostPlayerIds={[]} onGhostCarsEnabled={vi.fn()} onGhostHorizon={vi.fn()} onGhostPlayers={vi.fn()} />);
+    render(<PlayerSidebar state={{ frameIndex: 4, ball: { x: 0, y: 0, z: 250 }, cars: [{ id: 1, name: "Alpha", team: 0, x: 0, y: 0, z: 100, yaw: 0, rotation: null }] }} players={[]} trackedPlayerKey={null} onTrackPlayer={vi.fn()} predictionPlayers={[]} projectedCarsEnabled={false} projectedHorizon="0-1" selectedProjectedPlayerIds={[]} onProjectedCarsEnabled={vi.fn()} onProjectedHorizon={vi.fn()} onProjectedPlayers={vi.fn()} />);
     expect(screen.getByText("Alpha")).toBeVisible();
   });
 
-  it("can hide all ghost controls while retaining player tracking", () => {
-    render(<PlayerSidebar state={{ frameIndex: 0, ball: null, cars: [] }} players={[{ key: "0:Alpha", name: "Alpha", team: 0 }]} trackedPlayerKey={null} onTrackPlayer={vi.fn()} predictionPlayers={[]} ghostCarsEnabled={false} ghostHorizon="0-1" selectedGhostPlayerIds={[]} onGhostCarsEnabled={vi.fn()} onGhostHorizon={vi.fn()} onGhostPlayers={vi.fn()} showGhosts={false} />);
+  it("can hide all projection controls while retaining player tracking", () => {
+    render(<PlayerSidebar state={{ frameIndex: 0, ball: null, cars: [] }} players={[{ key: "0:Alpha", name: "Alpha", team: 0 }]} trackedPlayerKey={null} onTrackPlayer={vi.fn()} predictionPlayers={[]} projectedCarsEnabled={false} projectedHorizon="0-1" selectedProjectedPlayerIds={[]} onProjectedCarsEnabled={vi.fn()} onProjectedHorizon={vi.fn()} onProjectedPlayers={vi.fn()} showProjections={false} />);
     expect(screen.getByLabelText("Auto track player")).toBeVisible();
-    expect(screen.queryByRole("checkbox", { name: "Enable ghost cars" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Show projected cars" })).not.toBeInTheDocument();
   });
 
-  it("enables ghosts, changes timeframe, and selects any number of players", async () => {
+  it("enables projected cars, changes timeframe, and selects any number of players", async () => {
     const enabled = vi.fn();
     const horizon = vi.fn();
     const players = vi.fn();
@@ -157,11 +157,11 @@ describe("playback and players", () => {
       { id: "alpha", displayName: "Alpha", team: "blue" as const, samples: [] },
       { id: "bravo", displayName: "Bravo", team: "orange" as const, samples: [] },
     ];
-    const { rerender } = render(<GhostCarSettings players={predictionPlayers} enabled={false} horizon="0-1" selectedPlayerIds={["alpha", "bravo"]} onEnabled={enabled} onHorizon={horizon} onPlayers={players} />);
-    await userEvent.click(screen.getByRole("checkbox", { name: "Enable ghost cars" }));
+    const { rerender } = render(<ProjectedCarSettings players={predictionPlayers} enabled={false} horizon="0-1" selectedPlayerIds={["alpha", "bravo"]} onEnabled={enabled} onHorizon={horizon} onPlayers={players} />);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Show projected cars" }));
     expect(enabled).toHaveBeenCalledWith(true);
 
-    rerender(<GhostCarSettings players={predictionPlayers} enabled horizon="0-1" selectedPlayerIds={["alpha", "bravo"]} onEnabled={enabled} onHorizon={horizon} onPlayers={players} />);
+    rerender(<ProjectedCarSettings players={predictionPlayers} enabled horizon="0-1" selectedPlayerIds={["alpha", "bravo"]} onEnabled={enabled} onHorizon={horizon} onPlayers={players} />);
     await userEvent.selectOptions(screen.getByLabelText("Prediction timeframe"), "2-3.5");
     await userEvent.click(screen.getByRole("checkbox", { name: "Alpha" }));
     expect(horizon).toHaveBeenCalledWith("2-3.5");
@@ -205,7 +205,7 @@ describe("analysis", () => {
     expect(screen.getByText("Bravo repeated the mistake")).toBeVisible();
     expect(screen.queryByText("Charlie made another mistake")).not.toBeInTheDocument();
     expect(screen.queryByText("Blue <unsafe> team")).not.toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Auto-switch ghost" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Auto-switch projection" })).not.toBeInTheDocument();
   });
 
   it("orders replay mistakes by descending score without mutating the analysis", () => {
@@ -246,21 +246,21 @@ describe("analysis", () => {
     expect(navigate).toHaveBeenCalledWith(12, {
       subject: { displayName: "Alpha" },
       teamId: "blue",
-      autoGhost: true,
+      autoProjection: true,
       autoCamera: false,
-      ghostHorizon: "1-2",
+      projectedHorizon: "1-2",
     });
     await userEvent.click(screen.getByRole("checkbox", { name: "3 Seconds Before Mistake" }));
     expect(screen.getAllByText("3s context")).toHaveLength(2);
-    await userEvent.click(screen.getByRole("checkbox", { name: "Auto-switch ghost" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Auto-switch projection" }));
     await userEvent.click(screen.getByRole("checkbox", { name: "Auto-switch camera" }));
     await userEvent.click(screen.getAllByRole("button", { name: /Safe <model> text/ })[0]);
     expect(navigate).toHaveBeenCalledWith(9, {
       subject: { displayName: "Alpha" },
       teamId: "blue",
-      autoGhost: false,
+      autoProjection: false,
       autoCamera: true,
-      ghostHorizon: undefined,
+      projectedHorizon: undefined,
     });
     await userEvent.click(screen.getByRole("button", { name: /Goal scored 1/ }));
     expect(navigate).toHaveBeenCalledWith(12);

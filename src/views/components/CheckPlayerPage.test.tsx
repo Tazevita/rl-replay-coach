@@ -10,8 +10,6 @@ afterEach(cleanup);
 
 describe("CheckPlayerPage", () => {
   it("searches a trimmed username and renders every saved mistake", async () => {
-    const writeText = vi.fn(async () => undefined);
-    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     const replayContext = {
       sampleIntervalSeconds: 0.25 as const,
       startSeconds: 47.75,
@@ -49,27 +47,25 @@ describe("CheckPlayerPage", () => {
     render(<CheckPlayerPage gateway={gateway} />);
     await userEvent.type(screen.getByLabelText("Player username"), "  Alpha  ");
     fireEvent.change(screen.getByLabelText("Replay context"), { target: { value: "5" } });
-    await userEvent.click(screen.getByRole("button", { name: "Check player" }));
+    await userEvent.click(screen.getByRole("button", { name: "Analyze player" }));
     expect(gateway.getByUsername).toHaveBeenCalledWith("Alpha", 5);
     expect(await screen.findByText("Mistake 1")).toBeInTheDocument();
     expect(screen.getByText("Mistake 2")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Tactical focus" })).toBeInTheDocument();
-    expect(screen.getByText("recover over engage")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Decision habits" })).toBeInTheDocument();
-    expect(screen.getByText("far rotate over close rotate")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Tactical mistakes" })).toBeInTheDocument();
+    expect(screen.getByText("You tend to Engage when it's better to Recover.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Decision habit mistakes" })).toBeInTheDocument();
+    expect(screen.getByText("You tend to Close Rotate when it's better to Far Rotate.")).toBeInTheDocument();
     expect(screen.getAllByText("2x")).toHaveLength(2);
     const mistakeLink = screen.getByRole("link", { name: "Open match-1.replay at 48.0 seconds" });
     expect(mistakeLink).toHaveAttribute("href", "/?replay=replay-1&at=48");
     expect(mistakeLink).toHaveAttribute("target", "_blank");
     expect(mistakeLink).toHaveAttribute("rel", "noopener noreferrer");
-    await userEvent.click(screen.getAllByRole("button", { name: "Copy context" })[0]);
-    expect(writeText).toHaveBeenCalledWith(JSON.stringify(replayContext, null, 2));
-    expect(screen.getByRole("button", { name: "Copied" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Copy context" })).not.toBeInTheDocument();
     await userEvent.click(screen.getAllByRole("button", { name: "Explain mistake" })[0]);
     expect(gateway.explain).toHaveBeenCalledWith("1");
     expect(await screen.findByText(explanation.text)).toBeVisible();
     expect(screen.getAllByRole("button", { name: "Explain mistake" })).toHaveLength(1);
-    await userEvent.click(screen.getByRole("button", { name: "What to work on" }));
+    await userEvent.click(screen.getByRole("button", { name: "Find priorities" }));
     expect(gateway.getWeaknesses).toHaveBeenCalledWith("Alpha", 5);
     expect(await screen.findByText("Recover before committing")).toBeVisible();
     expect(screen.getByText("Rotate goal-side before deciding whether to challenge.")).toBeVisible();
@@ -82,7 +78,7 @@ describe("CheckPlayerPage", () => {
     })), explain: vi.fn(), getWeaknesses: vi.fn() };
     render(<CheckPlayerPage gateway={gateway} />);
     await userEvent.type(screen.getByLabelText("Player username"), "Nobody");
-    await userEvent.click(screen.getByRole("button", { name: "Check player" }));
+    await userEvent.click(screen.getByRole("button", { name: "Analyze player" }));
     expect(await screen.findByText("No uploaded gameplay was found for this username.")).toBeInTheDocument();
   });
 });

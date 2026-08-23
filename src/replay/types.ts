@@ -39,7 +39,7 @@ export interface ReplayPlayer {
   team: number;
 }
 
-export interface GhostCar extends Vector3Data {
+export interface ProjectedCar extends Vector3Data {
   id: string;
   name: string;
   team: number;

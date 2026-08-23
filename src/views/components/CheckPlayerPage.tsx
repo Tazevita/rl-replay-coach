@@ -6,6 +6,10 @@ function label(value: string): string {
   return value.toLowerCase().replaceAll("_", " ");
 }
 
+function titleLabel(value: string): string {
+  return label(value).replace(/\b\w/g, character => character.toUpperCase());
+}
+
 export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway }) {
   const [username, setUsername] = useState("");
   const [replayLimit, setReplayLimit] = useState(50);
@@ -13,24 +17,11 @@ export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway })
   const [resultReplayLimit, setResultReplayLimit] = useState(50);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copyState, setCopyState] = useState<Record<string, "Copied" | "Copy failed">>({});
   const [explaining, setExplaining] = useState<Record<string, boolean>>({});
   const [explanationErrors, setExplanationErrors] = useState<Record<string, string>>({});
   const [weaknesses, setWeaknesses] = useState<PlayerWeaknessesResponse | null>(null);
   const [analyzingWeaknesses, setAnalyzingWeaknesses] = useState(false);
   const [weaknessesError, setWeaknessesError] = useState<string | null>(null);
-
-  const copyContext = async (
-    id: string,
-    context: NonNullable<PlayerMistakesResponse["mistakes"][number]["replayContext"]>,
-  ): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(context, null, 2));
-      setCopyState(current => ({ ...current, [id]: "Copied" }));
-    } catch {
-      setCopyState(current => ({ ...current, [id]: "Copy failed" }));
-    }
-  };
 
   const explain = async (id: string): Promise<void> => {
     setExplaining(current => ({ ...current, [id]: true }));
@@ -107,7 +98,7 @@ export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway })
           placeholder="e.g. ApparentlyJack"
           autoComplete="off"
         />
-        <button type="submit" disabled={!username.trim() || loading}>{loading ? "Checking..." : "Check player"}</button>
+        <button type="submit" disabled={!username.trim() || loading}>{loading ? "Analyzing..." : "Analyze player"}</button>
       </div>
       <div className="replay-context-control">
         <label htmlFor="replay-context-count">Replay context</label>
@@ -140,12 +131,11 @@ export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway })
       {result.mistakes.length > 0 && <div className="work-on-section">
         <div className="work-on-heading">
           <div>
-            <p className="eyebrow">Focused coaching</p>
-            <h2>What to work on</h2>
-            <p>Turn every saved mistake into three clear priorities.</p>
+            <h2>Coaching priorities</h2>
+            <p>The recurring decisions to address first.</p>
           </div>
           <button type="button" disabled={analyzingWeaknesses} onClick={() => void analyzeWeaknesses()}>
-            {analyzingWeaknesses ? "Finding patterns..." : weaknesses ? "Analyze again" : "What to work on"}
+            {analyzingWeaknesses ? "Finding priorities..." : weaknesses ? "Refresh priorities" : "Find priorities"}
           </button>
         </div>
         {weaknessesError && <p className="work-on-error" role="alert">{weaknessesError}</p>}
@@ -170,14 +160,13 @@ export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway })
       {result.tacticalFocus.length > 0 && <div className="common-mistakes">
         <div className="section-title">
           <p className="eyebrow">High-level priority</p>
-          <h2>Tactical focus</h2>
+          <h2>Tactical mistakes</h2>
           <p>Which broad approach would have been stronger in the moment.</p>
         </div>
         <div className="category-grid">
           {result.tacticalFocus.map((item, index) => <article className="category-card" key={`${item.expectedFamily}-${item.actualFamily}`}>
             <span className="category-rank">{String(index + 1).padStart(2, "0")}</span>
-            <strong>{label(item.expectedFamily)} over {label(item.actualFamily)}</strong>
-            <p>Prioritize {label(item.expectedFamily)} when tempted to {label(item.actualFamily)}.</p>
+            <strong>You tend to {titleLabel(item.actualFamily)} when it's better to {titleLabel(item.expectedFamily)}.</strong>
             <div><b>{item.count}x</b><span>avg score {item.averageScore.toFixed(2)}</span></div>
           </article>)}
         </div>
@@ -186,14 +175,13 @@ export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway })
       {result.decisionHabits.length > 0 && <div className="common-mistakes">
         <div className="section-title">
           <p className="eyebrow">Specific adjustment</p>
-          <h2>Decision habits</h2>
+          <h2>Decision habit mistakes</h2>
           <p>The concrete choices that most often need to change.</p>
         </div>
         <div className="category-grid">
           {result.decisionHabits.map((item, index) => <article className="category-card decision-card" key={`${item.expectedIntent}-${item.actualIntent}`}>
             <span className="category-rank">{String(index + 1).padStart(2, "0")}</span>
-            <strong>{label(item.expectedIntent)} over {label(item.actualIntent)}</strong>
-            <p>Choose {label(item.expectedIntent)} instead of {label(item.actualIntent)}.</p>
+            <strong>You tend to {titleLabel(item.actualIntent)} when it's better to {titleLabel(item.expectedIntent)}.</strong>
             <div><b>{item.count}x</b><span>avg score {item.averageScore.toFixed(2)}</span></div>
           </article>)}
         </div>
@@ -232,15 +220,6 @@ export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway })
               >
                 {explaining[mistake.id] ? "Explaining..." : "Explain mistake"}
               </button>}
-              <button
-                className="copy-context-button"
-                type="button"
-                disabled={!mistake.replayContext}
-                title={mistake.replayContext ? "Copy replay context as JSON" : "Replay context unavailable"}
-                onClick={() => mistake.replayContext && void copyContext(mistake.id, mistake.replayContext)}
-              >
-                {copyState[mistake.id] ?? "Copy context"}
-              </button>
               {explanationErrors[mistake.id] && <p className="mistake-explanation-error" role="alert">{explanationErrors[mistake.id]}</p>}
             </div>
           </article>)}

@@ -8,13 +8,13 @@ interface PlayerSidebarProps {
   trackedPlayerKey: string | null;
   onTrackPlayer(key: string | null): void;
   predictionPlayers: readonly PlayerPrediction[];
-  ghostCarsEnabled: boolean;
-  ghostHorizon: PredictionHorizon;
-  selectedGhostPlayerIds: readonly string[];
-  onGhostCarsEnabled(enabled: boolean): void;
-  onGhostHorizon(horizon: PredictionHorizon): void;
-  onGhostPlayers(playerIds: readonly string[]): void;
-  showGhosts?: boolean;
+  projectedCarsEnabled: boolean;
+  projectedHorizon: PredictionHorizon;
+  selectedProjectedPlayerIds: readonly string[];
+  onProjectedCarsEnabled(enabled: boolean): void;
+  onProjectedHorizon(horizon: PredictionHorizon): void;
+  onProjectedPlayers(playerIds: readonly string[]): void;
+  showProjections?: boolean;
 }
 
 export function PlayerSidebar(props: PlayerSidebarProps) {
@@ -25,14 +25,14 @@ export function PlayerSidebar(props: PlayerSidebarProps) {
         <h2>Players</h2>
       </div>
       <PlayerTracker players={props.players} selected={props.trackedPlayerKey} onChange={props.onTrackPlayer} />
-      {props.showGhosts !== false && <GhostCarSettings
+      {props.showProjections !== false && <ProjectedCarSettings
         players={props.predictionPlayers}
-        enabled={props.ghostCarsEnabled}
-        horizon={props.ghostHorizon}
-        selectedPlayerIds={props.selectedGhostPlayerIds}
-        onEnabled={props.onGhostCarsEnabled}
-        onHorizon={props.onGhostHorizon}
-        onPlayers={props.onGhostPlayers}
+        enabled={props.projectedCarsEnabled}
+        horizon={props.projectedHorizon}
+        selectedPlayerIds={props.selectedProjectedPlayerIds}
+        onEnabled={props.onProjectedCarsEnabled}
+        onHorizon={props.onProjectedHorizon}
+        onPlayers={props.onProjectedPlayers}
       />}
       <div className="players">
         {cars.length ? cars.map(car => <div className="player" key={car.id}>
@@ -45,7 +45,7 @@ export function PlayerSidebar(props: PlayerSidebarProps) {
   </aside>;
 }
 
-export function GhostCarSettings({
+export function ProjectedCarSettings({
   players,
   enabled,
   horizon,
@@ -66,18 +66,18 @@ export function GhostCarSettings({
   const togglePlayer = (id: string, checked: boolean): void => {
     onPlayers(checked ? [...selectedPlayerIds, id] : selectedPlayerIds.filter(playerId => playerId !== id));
   };
-  return <fieldset className="ghost-settings" disabled={!players.length}>
-    <label className="ghost-toggle">
+  return <fieldset className="projected-settings" disabled={!players.length}>
+    <label className="projected-toggle">
       <input type="checkbox" checked={enabled} onChange={event => onEnabled(event.currentTarget.checked)} />
-      <span>Enable ghost cars</span>
+      <span>Show projected cars</span>
     </label>
-    <label className="ghost-horizon">
+    <label className="projected-horizon">
       <span>Prediction timeframe</span>
       <select aria-label="Prediction timeframe" value={horizon} disabled={!enabled || !players.length} onChange={event => onHorizon(event.currentTarget.value as PredictionHorizon)}>
         {PREDICTION_HORIZONS.map(item => <option value={item.id} key={item.id}>{item.label}</option>)}
       </select>
     </label>
-    <div className="ghost-player-list" aria-label="Ghost car players">
+    <div className="projected-player-list" aria-label="Projected car players">
       {players.map(player => <label key={player.id}>
         <input
           type="checkbox"
@@ -87,7 +87,7 @@ export function GhostCarSettings({
         />
         <span className={player.team === "blue" ? "blue-text" : "orange-text"}>{player.displayName}</span>
       </label>)}
-      {!players.length && <span className="ghost-unavailable">Upload a replay to load predictions.</span>}
+      {!players.length && <span className="projected-unavailable">Upload a replay to load predictions.</span>}
     </div>
   </fieldset>;
 }

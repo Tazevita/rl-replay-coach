@@ -4,7 +4,7 @@ import type {
   PlayerPredictionSample,
   PlayerPredictions,
 } from "../shared/contracts/replay-analysis-v2";
-import type { GhostCar, Vector3Data } from "./types";
+import type { ProjectedCar, Vector3Data } from "./types";
 
 export type PredictionHorizon = "0-1" | "1-2" | "2-3.5";
 
@@ -26,12 +26,12 @@ export const EMPTY_PLAYER_PREDICTIONS: PlayerPredictions = Object.freeze({
   players: [],
 });
 
-export function ghostCarsAt(
+export function projectedCarsAt(
   predictions: PlayerPredictions,
   playhead: number,
   horizonId: PredictionHorizon,
   selectedPlayerIds: ReadonlySet<string>,
-): GhostCar[] {
+): ProjectedCar[] {
   const window = PREDICTION_HORIZONS.find(item => item.id === horizonId)!;
   return predictions.players.flatMap(player => {
     if (!selectedPlayerIds.has(player.id)) return [];

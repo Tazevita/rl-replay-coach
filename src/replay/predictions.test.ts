@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerPredictions } from "../shared/contracts/replay-analysis-v2";
-import { ghostCarsAt } from "./predictions";
+import { projectedCarsAt } from "./predictions";
 
 function predictions(): PlayerPredictions {
   const horizon = (startSeconds: number, endSeconds: number, x: number, forward = { x: 1, y: 0, z: 0 }) => ({
@@ -24,28 +24,28 @@ function predictions(): PlayerPredictions {
   };
 }
 
-describe("ghostCarsAt", () => {
+describe("projectedCarsAt", () => {
   it("filters players and selects the requested endpoint horizon", () => {
-    expect(ghostCarsAt(predictions(), 1, "1-2", new Set())).toEqual([]);
-    expect(ghostCarsAt(predictions(), 1, "1-2", new Set(["alpha"]))[0]).toMatchObject({
+    expect(projectedCarsAt(predictions(), 1, "1-2", new Set())).toEqual([]);
+    expect(projectedCarsAt(predictions(), 1, "1-2", new Set(["alpha"]))[0]).toMatchObject({
       id: "alpha", name: "Alpha", team: 1, x: 200, y: 20, z: 30,
     });
   });
 
   it("interpolates available samples and predicted facing", () => {
-    const [ghost] = ghostCarsAt(predictions(), 1.5, "0-1", new Set(["alpha"]));
-    expect(ghost.x).toBe(200);
-    expect(ghost.yaw).toBeCloseTo(Math.PI / 4);
+    const [projectedCar] = projectedCarsAt(predictions(), 1.5, "0-1", new Set(["alpha"]));
+    expect(projectedCar.x).toBe(200);
+    expect(projectedCar.yaw).toBeCloseTo(Math.PI / 4);
   });
 
   it("does not project unavailable or future-only samples", () => {
-    expect(ghostCarsAt(predictions(), .5, "0-1", new Set(["alpha"]))).toEqual([]);
-    expect(ghostCarsAt(predictions(), 3, "0-1", new Set(["alpha"]))).toEqual([]);
+    expect(projectedCarsAt(predictions(), .5, "0-1", new Set(["alpha"]))).toEqual([]);
+    expect(projectedCarsAt(predictions(), 3, "0-1", new Set(["alpha"]))).toEqual([]);
   });
 
   it("clamps below-ground predictions to the grounded car height", () => {
     const data = predictions();
     data.players[0].samples[0].horizons[0].position.z = -20;
-    expect(ghostCarsAt(data, 1, "0-1", new Set(["alpha"]))[0].z).toBe(17.01);
+    expect(projectedCarsAt(data, 1, "0-1", new Set(["alpha"]))[0].z).toBe(17.01);
   });
 });

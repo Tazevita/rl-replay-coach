@@ -10,9 +10,9 @@ const MISTAKE_CONTEXT_SECONDS = 3;
 export interface AnalysisNavigationOptions {
   subject: NonNullable<AnalysisFinding["subject"]>;
   teamId: TeamAnalysis["team"]["id"];
-  autoGhost: boolean;
+  autoProjection: boolean;
   autoCamera: boolean;
-  ghostHorizon?: PredictionHorizon;
+  projectedHorizon?: PredictionHorizon;
 }
 
 interface AnalysisPanelProps {
@@ -27,7 +27,7 @@ interface AnalysisPanelProps {
 
 export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", replayId, mistakesGateway, onNavigate }: AnalysisPanelProps) {
   const [includeContext, setIncludeContext] = useState(false);
-  const [autoGhost, setAutoGhost] = useState(true);
+  const [autoProjection, setAutoProjection] = useState(true);
   const [autoCamera, setAutoCamera] = useState(false);
   const throwerReport = mode === "who-threw" ? calculateWhoThrew(teams) : null;
   const status = uploadError
@@ -46,8 +46,8 @@ export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", 
           <span>3 Seconds Before Mistake</span>
         </label>
         {mode === "teams" && <label className="analysis-context-toggle">
-          <input type="checkbox" checked={autoGhost} onChange={event => setAutoGhost(event.currentTarget.checked)} />
-          <span>Auto-switch ghost</span>
+          <input type="checkbox" checked={autoProjection} onChange={event => setAutoProjection(event.currentTarget.checked)} />
+          <span>Auto-switch projection</span>
         </label>}
         <label className="analysis-context-toggle">
           <input type="checkbox" checked={autoCamera} onChange={event => setAutoCamera(event.currentTarget.checked)} />
@@ -57,7 +57,7 @@ export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", 
     </div>
     {mode === "who-threw"
       ? <WhoThrewReport report={throwerReport} includeContext={includeContext} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />
-      : <TeamAnalysisTimeline teams={teams} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
+      : <TeamAnalysisTimeline teams={teams} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
   </section>;
 }
 
@@ -68,7 +68,7 @@ interface TimelineEvent {
   orange?: AnalysisEvent;
 }
 
-function TeamAnalysisTimeline({ teams, includeContext, autoGhost, autoCamera, replayId, mistakesGateway, onNavigate }: { teams: readonly TeamAnalysis[]; includeContext: boolean; autoGhost: boolean; autoCamera: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+function TeamAnalysisTimeline({ teams, includeContext, autoProjection, autoCamera, replayId, mistakesGateway, onNavigate }: { teams: readonly TeamAnalysis[]; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   const blue = teams.find(team => team.team.id === "blue");
   const orange = teams.find(team => team.team.id === "orange");
   const events = buildTimeline(teams);
@@ -86,14 +86,14 @@ function TeamAnalysisTimeline({ teams, includeContext, autoGhost, autoCamera, re
     <div className="match-timeline">
       {events.map(event => <section className="match-timeline-event" key={event.occurredAtSeconds}>
         <div className="timeline-lane timeline-lane-blue">
-          {event.blue && blue && <AnalysisEventView event={event.blue} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} teamId="blue" replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
+          {event.blue && blue && <AnalysisEventView event={event.blue} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId="blue" replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
         </div>
         <button className="timeline-marker" type="button" onClick={() => onNavigate(event.occurredAtSeconds)} aria-label={`Jump to ${event.displayClock ?? formatTime(event.occurredAtSeconds)}`}>
           <span>{event.displayClock ?? formatTime(event.occurredAtSeconds)}</span>
           <i aria-hidden="true" />
         </button>
         <div className="timeline-lane timeline-lane-orange">
-          {event.orange && orange && <AnalysisEventView event={event.orange} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} teamId="orange" replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
+          {event.orange && orange && <AnalysisEventView event={event.orange} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId="orange" replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
         </div>
       </section>)}
     </div>
@@ -187,7 +187,7 @@ function WhoThrewReport({ report, includeContext, autoCamera, replayId, mistakes
         <span className="goal-fault"><strong>{goal.faultPercent}%</strong><small>{report.player.displayName}'s fault</small></span>
       </button>
       <div className="analysis-findings">{goal.findings.length
-        ? goal.findings.map(finding => <Finding key={finding.id} finding={finding} includeContext={includeContext} autoGhost={false} autoCamera={autoCamera} teamId={report.team.team.id} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
+        ? goal.findings.map(finding => <Finding key={finding.id} finding={finding} includeContext={includeContext} autoProjection={false} autoCamera={autoCamera} teamId={report.team.team.id} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
         : <div className="analysis-note">No mistake from {report.player.displayName} contributed to this goal.</div>}
       </div>
     </section>)}</div>
@@ -203,20 +203,20 @@ function sameSubject(left: NonNullable<AnalysisFinding["subject"]>, right: NonNu
   return left.displayName.trim().toLocaleLowerCase() === right.displayName.trim().toLocaleLowerCase();
 }
 
-export function TeamAnalysisCard({ team, includeContext = true, autoGhost = false, autoCamera = false, replayId, mistakesGateway, onNavigate }: { team: TeamAnalysis; includeContext?: boolean; autoGhost?: boolean; autoCamera?: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+export function TeamAnalysisCard({ team, includeContext = true, autoProjection = false, autoCamera = false, replayId, mistakesGateway, onNavigate }: { team: TeamAnalysis; includeContext?: boolean; autoProjection?: boolean; autoCamera?: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   return <article className={`team-report ${team.team.id}`}>
     <header className="team-report-header">
       <div><h3>{team.team.displayName} team</h3><p>{team.players.map(player => player.displayName).join(" + ") || "Roster unavailable"}</p></div>
       <span className="team-record">{team.score.for} scored · {team.score.against} conceded</span>
     </header>
     <div className="analysis-events">{team.events.length
-      ? team.events.map(event => <AnalysisEventView key={event.id} event={event} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} teamId={team.team.id} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
+      ? team.events.map(event => <AnalysisEventView key={event.id} event={event} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId={team.team.id} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
       : <p className="analysis-empty">No goals or goal-related findings were reported.</p>}
     </div>
   </article>;
 }
 
-function AnalysisEventView({ event, includeContext, autoGhost, autoCamera, teamId, replayId, mistakesGateway, onNavigate }: { event: AnalysisEvent; includeContext: boolean; autoGhost: boolean; autoCamera: boolean; teamId: TeamAnalysis["team"]["id"]; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+function AnalysisEventView({ event, includeContext, autoProjection, autoCamera, teamId, replayId, mistakesGateway, onNavigate }: { event: AnalysisEvent; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; teamId: TeamAnalysis["team"]["id"]; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   const title = event.relation === "scored" ? `Goal scored ${event.ordinal}` : `Goal conceded ${event.ordinal}`;
   const findings = [...event.findings].sort((left, right) =>
     (right.extensions?.mistake?.score ?? -1) - (left.extensions?.mistake?.score ?? -1));
@@ -226,13 +226,13 @@ function AnalysisEventView({ event, includeContext, autoGhost, autoCamera, teamI
       <span className="event-detail"><strong>{title}</strong></span>
     </button>
     <div className="analysis-findings">{findings.length
-      ? findings.map(finding => <Finding key={finding.id} finding={finding} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} teamId={teamId} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
+      ? findings.map(finding => <Finding key={finding.id} finding={finding} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId={teamId} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
       : <div className="analysis-note">No sustained high-confidence finding was reported.</div>}
     </div>
   </section>;
 }
 
-function Finding({ finding, includeContext, autoGhost, autoCamera, teamId, replayId, mistakesGateway, onNavigate }: { finding: AnalysisFinding; includeContext: boolean; autoGhost: boolean; autoCamera: boolean; teamId: TeamAnalysis["team"]["id"]; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+function Finding({ finding, includeContext, autoProjection, autoCamera, teamId, replayId, mistakesGateway, onNavigate }: { finding: AnalysisFinding; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; teamId: TeamAnalysis["team"]["id"]; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   const mistake = finding.extensions?.mistake;
   const [explanation, setExplanation] = useState<MistakeExplanation | null>(null);
   const [explaining, setExplaining] = useState(false);
@@ -273,13 +273,13 @@ function Finding({ finding, includeContext, autoGhost, autoCamera, teamId, repla
   if (!finding.navigation) return <div className="analysis-finding-shell"><div className={`analysis-finding tone-${finding.tone} no-navigation`}>{content}</div>{technicalDetails}{explanationAction}</div>;
   const seekTime = Math.max(0, finding.navigation.anchorSeconds - (includeContext ? MISTAKE_CONTEXT_SECONDS : 0));
   const navigate = (): void => {
-    if ((autoGhost || autoCamera) && finding.subject) {
+    if ((autoProjection || autoCamera) && finding.subject) {
       onNavigate(seekTime, {
         subject: finding.subject,
         teamId,
-        autoGhost,
+        autoProjection,
         autoCamera,
-        ghostHorizon: autoGhost ? predictionHorizonFrom(finding.text) : undefined,
+        projectedHorizon: autoProjection ? predictionHorizonFrom(finding.text) : undefined,
       });
     }
     else onNavigate(seekTime);

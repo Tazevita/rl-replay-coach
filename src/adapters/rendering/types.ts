@@ -1,10 +1,10 @@
-import type { GhostCar, InterpolatedReplayState } from "../../replay/types";
+import type { InterpolatedReplayState, ProjectedCar } from "../../replay/types";
 
 export interface RenderContext {
   deltaSeconds: number;
   autoCamera: boolean;
   trackedPlayerKey: string | null;
-  ghostCars: readonly GhostCar[];
+  projectedCars: readonly ProjectedCar[];
 }
 
 export interface ReplayRenderer {
