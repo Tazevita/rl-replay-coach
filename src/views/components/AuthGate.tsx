@@ -3,7 +3,11 @@ import { createClient, type Session } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
-const signupsEnabled = import.meta.env.VITE_SIGNUPS_ENABLED?.trim().toLowerCase() === "true";
+export function areSignupsEnabled(value: string | undefined): boolean {
+  return value?.trim().toLowerCase() !== "false";
+}
+
+const signupsEnabled = areSignupsEnabled(import.meta.env.VITE_SIGNUPS_ENABLED);
 const testMode = import.meta.env.VITE_TEST_MODE?.trim().toLowerCase() === "true";
 const testUserEmail = import.meta.env.VITE_TEST_USER_EMAIL?.trim() || "local@test.invalid";
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : undefined;

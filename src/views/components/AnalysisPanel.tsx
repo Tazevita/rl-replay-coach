@@ -36,11 +36,11 @@ export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", 
         ? "Only the losing team's most frequent contributor to conceded goals is shown."
         : "Select any timestamp to jump to that moment in the replay."
         : "Upload a replay to generate analysis for both teams.");
-  return <section className="analysis" aria-live="polite">
+  return <section className={`analysis analysis-${mode}`} aria-live="polite">
     <div className="analysis-heading">
-      <div><p className="eyebrow">Replay Goal Runner</p><h2>{mode === "who-threw" ? "Who threw?" : "Team analysis"}</h2></div>
+      <div><h2>{mode === "who-threw" ? "Who threw?" : "Team analysis"}</h2><span className={uploadError ? "error" : ""}>{status}</span></div>
       <div className="analysis-heading-meta">
-        <span className={uploadError ? "error" : ""}>{status}</span>
+        <strong>Jump behavior</strong>
         <label className="analysis-context-toggle">
           <input type="checkbox" checked={includeContext} onChange={event => setIncludeContext(event.currentTarget.checked)} />
           <span>3 Seconds Before Mistake</span>
@@ -57,8 +57,70 @@ export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", 
     </div>
     {mode === "who-threw"
       ? <WhoThrewReport report={throwerReport} includeContext={includeContext} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />
-      : <div className="team-analysis-grid">{teams.map(team => <TeamAnalysisCard key={team.id} team={team} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)}</div>}
+      : <TeamAnalysisTimeline teams={teams} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
   </section>;
+}
+
+interface TimelineEvent {
+  occurredAtSeconds: number;
+  displayClock?: string;
+  blue?: AnalysisEvent;
+  orange?: AnalysisEvent;
+}
+
+function TeamAnalysisTimeline({ teams, includeContext, autoGhost, autoCamera, replayId, mistakesGateway, onNavigate }: { teams: readonly TeamAnalysis[]; includeContext: boolean; autoGhost: boolean; autoCamera: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+  const blue = teams.find(team => team.team.id === "blue");
+  const orange = teams.find(team => team.team.id === "orange");
+  const events = buildTimeline(teams);
+  if (!teams.length) return <p className="analysis-empty analysis-empty-panel">Upload a replay to begin the match review.</p>;
+  return <div className="match-review">
+    <div className="match-review-teams">
+      <TeamTimelineHeader team={blue} side="blue" />
+      <div className="timeline-axis-label">Match timeline</div>
+      <TeamTimelineHeader team={orange} side="orange" />
+    </div>
+    {(blue && !blue.events.length || orange && !orange.events.length) && <div className="analysis-team-empty">
+      {blue && !blue.events.length && <span><b>Blue</b> No goals or goal-related findings were reported.</span>}
+      {orange && !orange.events.length && <span><b>Orange</b> No goals or goal-related findings were reported.</span>}
+    </div>}
+    <div className="match-timeline">
+      {events.map(event => <section className="match-timeline-event" key={event.occurredAtSeconds}>
+        <div className="timeline-lane timeline-lane-blue">
+          {event.blue && blue && <AnalysisEventView event={event.blue} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} teamId="blue" replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
+        </div>
+        <button className="timeline-marker" type="button" onClick={() => onNavigate(event.occurredAtSeconds)} aria-label={`Jump to ${event.displayClock ?? formatTime(event.occurredAtSeconds)}`}>
+          <span>{event.displayClock ?? formatTime(event.occurredAtSeconds)}</span>
+          <i aria-hidden="true" />
+        </button>
+        <div className="timeline-lane timeline-lane-orange">
+          {event.orange && orange && <AnalysisEventView event={event.orange} includeContext={includeContext} autoGhost={autoGhost} autoCamera={autoCamera} teamId="orange" replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
+        </div>
+      </section>)}
+    </div>
+  </div>;
+}
+
+function TeamTimelineHeader({ team, side }: { team?: TeamAnalysis; side: "blue" | "orange" }) {
+  return <header className={`timeline-team timeline-team-${side}`}>
+    <span>{side}</span>
+    <div><h3>{team ? `${team.team.displayName} team` : `${side} team`}</h3><p>{team?.players.map(player => player.displayName).join(" + ") || "Roster unavailable"}</p></div>
+    {team && <strong>{team.score.for}<small>goals</small></strong>}
+  </header>;
+}
+
+function buildTimeline(teams: readonly TeamAnalysis[]): TimelineEvent[] {
+  const timeline = new Map<number, TimelineEvent>();
+  for (const team of teams) {
+    for (const event of team.events) {
+      const current = timeline.get(event.occurredAtSeconds) ?? {
+        occurredAtSeconds: event.occurredAtSeconds,
+        displayClock: event.displayClock,
+      };
+      current[team.team.id] = event;
+      timeline.set(event.occurredAtSeconds, current);
+    }
+  }
+  return [...timeline.values()].sort((left, right) => left.occurredAtSeconds - right.occurredAtSeconds);
 }
 
 export interface WhoThrewGoal {
@@ -180,14 +242,15 @@ function Finding({ finding, includeContext, autoGhost, autoCamera, teamId, repla
     : null;
   const content = <>
     {finding.navigation && <span className="finding-stamp">{formatTime(finding.navigation.anchorSeconds)}<small>{includeContext ? `${MISTAKE_CONTEXT_SECONDS}s context` : "exact moment"}</small></span>}
-    <span className="finding-detail">
-      <span>{finding.text}</span>
-      {mistake && <span className="finding-comparison">
+    <span className="finding-detail">{finding.text}</span>
+  </>;
+  const technicalDetails = mistake && <details className="finding-technical">
+    <summary>Technical details</summary>
+    <div className="finding-comparison">
         <span><strong>Likely happened</strong>{formatIntent(mistake.actualIntent, mistake.actualFamily)} <b>{formatConfidence(mistake.confidence.actual)}</b></span>
         <span><strong>Likely better play</strong>{formatIntent(mistake.expectedIntent, mistake.expectedFamily)} <b>{formatConfidence(mistake.confidence.expected)}</b></span>
-      </span>}
-    </span>
-  </>;
+    </div>
+  </details>;
   const explanationAction = mistakeId && mistakesGateway && <div className="finding-explanation-action">
     {!explanation && <button
       type="button"
@@ -207,7 +270,7 @@ function Finding({ finding, includeContext, autoGhost, autoCamera, teamId, repla
     {explanation && <p><strong>Simple explanation</strong>{explanation.text}</p>}
     {explanationError && <span role="alert">{explanationError}</span>}
   </div>;
-  if (!finding.navigation) return <div className="analysis-finding-shell"><div className={`analysis-finding tone-${finding.tone} no-navigation`}>{content}</div>{explanationAction}</div>;
+  if (!finding.navigation) return <div className="analysis-finding-shell"><div className={`analysis-finding tone-${finding.tone} no-navigation`}>{content}</div>{technicalDetails}{explanationAction}</div>;
   const seekTime = Math.max(0, finding.navigation.anchorSeconds - (includeContext ? MISTAKE_CONTEXT_SECONDS : 0));
   const navigate = (): void => {
     if ((autoGhost || autoCamera) && finding.subject) {
@@ -223,6 +286,7 @@ function Finding({ finding, includeContext, autoGhost, autoCamera, teamId, repla
   };
   return <div className="analysis-finding-shell">
     <button className={`analysis-finding tone-${finding.tone}`} type="button" onClick={navigate}>{content}</button>
+    {technicalDetails}
     {explanationAction}
   </div>;
 }
