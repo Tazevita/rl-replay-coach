@@ -28,6 +28,7 @@
     "@react-three/fiber": "^9.7.0",
     "@supabase/server": "^1.4.1",
     "@supabase/supabase-js": "^2.112.3",
+    "@vercel/analytics": "^2.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "^0.179.1",

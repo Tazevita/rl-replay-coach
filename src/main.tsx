@@ -1,5 +1,6 @@
 import { StrictMode, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
+import { Analytics } from "@vercel/analytics/react";
 import type { Session } from "@supabase/supabase-js";
 import { DefaultReplayViewerController } from "./application/controllers/replay-viewer-controller";
 import { HttpReplayDataGateway } from "./adapters/http/replay-data-gateway";
@@ -48,4 +49,9 @@ function AuthenticatedApp({ session }: { session: Session }) {
       : <App mistakesGateway={mistakesGateway} controller={controller} mode={path === "/who-threw" ? "who-threw" : "teams"} />;
 }
 
-createRoot(root).render(<StrictMode><AuthGate>{session => <AuthenticatedApp session={session} />}</AuthGate></StrictMode>);
+createRoot(root).render(
+  <StrictMode>
+    <AuthGate>{session => <AuthenticatedApp session={session} />}</AuthGate>
+    <Analytics />
+  </StrictMode>,
+);
