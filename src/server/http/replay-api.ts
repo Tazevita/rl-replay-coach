@@ -1,5 +1,5 @@
 import { createWriteStream } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -19,12 +19,26 @@ import {
   MistakeExplanationUnavailableError,
   MistakeNotFoundError,
 } from "../../application/explain-mistake";
-import type { ReplayRepository, ReplaySource } from "../../application/ports";
+import type { ReplayRepository, ReplaySource, SupportRequestRepository } from "../../application/ports";
 import { replayJobCreatedSchema } from "../../shared/contracts/replay-job";
+import { supportRequestSchema } from "../../shared/contracts/support-request";
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 type Next = (error?: unknown) => void;
-export type AuthenticateRequest = (request: IncomingMessage) => Promise<string | undefined>;
+export interface AuthenticatedUser { id: string; email: string; }
+export type AuthenticateRequest = (request: IncomingMessage) => Promise<AuthenticatedUser | undefined>;
+
+async function readJson(request: IncomingMessage, limit = 16 * 1024): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    bytes += buffer.length;
+    if (bytes > limit) throw new Error("Request body is too large.");
+    chunks.push(buffer);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.statusCode = status;
@@ -68,12 +82,33 @@ export function createReplayHttpHandler(
   explainMistake: Pick<ExplainMistake, "execute">,
   analyzePlayerWeaknesses: Pick<AnalyzePlayerWeaknesses, "execute">,
   authenticate: AuthenticateRequest,
+  supportRequests?: SupportRequestRepository,
 ) {
   return async (request: IncomingMessage, response: ServerResponse, next: Next): Promise<void> => {
     const requestUrl = new URL(request.url ?? "/", "http://localhost");
     if (!requestUrl.pathname.startsWith("/api/")) return next();
-    const createdBy = await authenticate(request);
-    if (!createdBy) return sendJson(response, 401, { error: "Sign in to continue." });
+    const user = await authenticate(request);
+    if (!user) return sendJson(response, 401, { error: "Sign in to continue." });
+    const createdBy = user.id;
+    if (request.method === "POST" && requestUrl.pathname === "/api/support-requests") {
+      if (!supportRequests) return sendJson(response, 503, { error: "Support messages are temporarily unavailable." });
+      try {
+        const input = supportRequestSchema.parse(await readJson(request));
+        await supportRequests.create({
+          id: randomUUID(),
+          createdBy,
+          email: user.email,
+          subject: input.subject,
+          message: input.message,
+          createdAt: new Date().toISOString(),
+        });
+        response.statusCode = 204;
+        response.end();
+      } catch (error) {
+        return sendJson(response, 400, { error: error instanceof Error ? error.message : "Could not send your message." });
+      }
+      return;
+    }
     const jobMatch = requestUrl.pathname.match(/^\/api\/replay-jobs\/([^/]+)$/);
     if (request.method === "GET" && jobMatch) {
       let id: string;
@@ -208,8 +243,9 @@ export function createReplayApiPlugin(
   explainMistake: ExplainMistake,
   analyzePlayerWeaknesses: AnalyzePlayerWeaknesses,
   authenticate: AuthenticateRequest,
+  supportRequests?: SupportRequestRepository,
 ): Plugin {
-  const handler = createReplayHttpHandler(processReplayJob, repository, explainMistake, analyzePlayerWeaknesses, authenticate);
+  const handler = createReplayHttpHandler(processReplayJob, repository, explainMistake, analyzePlayerWeaknesses, authenticate, supportRequests);
   return {
     name: "replay-api",
     configureServer(server) { server.middlewares.use(handler); },

@@ -31,8 +31,8 @@ const mistake: PlayerMistake = {
   explanation: null,
 };
 
-function repository(): ReplayRepository {
-  let saved = mistake;
+function repository(initial = mistake): ReplayRepository {
+  let saved = initial;
   return {
     listReplays: vi.fn(), deleteReplay: vi.fn(),
     findBundleByHash: vi.fn(), publish: vi.fn(), getReplay: vi.fn(), getBundle: vi.fn(), getPlayerMistakes: vi.fn(),
@@ -57,8 +57,30 @@ describe("ExplainMistake", () => {
     ]);
     expect(first).toEqual(second);
     expect(first.explanation.text).toBe("Rotate back before challenging.");
+    expect(first.explanation.promptVersion).toBe("2");
     await useCase.execute(mistake.id, "johndoe");
     expect(provider.explain).toHaveBeenCalledTimes(1);
+  });
+
+  it("regenerates an explanation created by an older prompt", async () => {
+    const replayRepository = repository({
+      ...mistake,
+      explanation: {
+        text: "Old generic advice.",
+        generatedAt: "2026-08-18T12:00:00.000Z",
+        model: "gpt-5.6",
+        promptVersion: "1",
+      },
+    });
+    const provider: MistakeExplanationProvider = {
+      explain: vi.fn(async () => ({ text: "Grounded replacement.", model: "gpt-5.6" })),
+    };
+    const useCase = new ExplainMistake({ repository: replayRepository, provider, now: () => new Date("2026-08-19T12:00:00Z") });
+
+    const result = await useCase.execute(mistake.id, "johndoe");
+
+    expect(result.explanation).toMatchObject({ text: "Grounded replacement.", promptVersion: "2" });
+    expect(provider.explain).toHaveBeenCalledOnce();
   });
 
   it("reports missing configuration only when no cached explanation exists", async () => {

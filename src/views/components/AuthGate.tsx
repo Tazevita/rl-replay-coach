@@ -4,6 +4,8 @@ import { createClient, type Session } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
 const signupsEnabled = import.meta.env.VITE_SIGNUPS_ENABLED?.trim().toLowerCase() === "true";
+const testMode = import.meta.env.VITE_TEST_MODE?.trim().toLowerCase() === "true";
+const testUserEmail = import.meta.env.VITE_TEST_USER_EMAIL?.trim() || "local@test.invalid";
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : undefined;
 const AUTH_TIMEOUT_MS = 15_000;
 
@@ -15,7 +17,14 @@ function withTimeout<T>(request: PromiseLike<T>, message: string): Promise<T> {
 }
 
 export function AuthGate({ children }: { children(session: Session): ReactNode }) {
-  const [session, setSession] = useState<Session | null>();
+  const [session, setSession] = useState<Session | null | undefined>(testMode ? {
+    access_token: "local-test-token",
+    token_type: "bearer",
+    expires_in: 0,
+    expires_at: 0,
+    refresh_token: "local-test-token",
+    user: { id: "local-test-user", email: testUserEmail } as Session["user"],
+  } : undefined);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"sign-in" | "sign-up" | "forgot-password" | "reset-password">("sign-in");
@@ -23,6 +32,7 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (testMode) return;
     if (!supabase) return setSession(null);
     let active = true;
     void withTimeout(supabase.auth.getSession(), "Could not reach the account service. Check the Supabase browser configuration.")
@@ -46,8 +56,9 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
   if (session && mode !== "reset-password") return <>
     <div className="account-bar">
       <a href="/replay-history">Replay history</a>
+      <a href="/support">Support</a>
       <span>{session.user.email}</span>
-      <button type="button" onClick={() => void supabase?.auth.signOut()}>Sign out</button>
+      {!testMode && <button type="button" onClick={() => void supabase?.auth.signOut()}>Sign out</button>}
     </div>
     {children(session)}
   </>;

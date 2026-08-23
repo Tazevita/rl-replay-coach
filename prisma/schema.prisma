@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Replay {
+  id          String         @id
+  contentHash String
+  filename    String
+  createdBy   String
+  analyzedAt  DateTime
+  replayPath  String         @unique
+  bundle      String
+  players     ReplayPlayer[]
+  mistakes    Mistake[]
+
+  @@unique([createdBy, contentHash])
+  @@index([createdBy, analyzedAt])
+}
+
+model ReplayPlayer {
+  replayId    String
+  playerId    String
+  displayName String
+  team        String
+  replay      Replay @relation(fields: [replayId], references: [id], onDelete: Cascade)
+
+  @@id([replayId, playerId])
+  @@index([displayName])
+}
+
+model Mistake {
+  id                       String   @id
+  replayId                 String
+  findingId                String
+  playerId                 String
+  displayName              String
+  eventId                  String
+  occurredAtSeconds        Float
+  anchorSeconds            Float
+  expectedFamily           String
+  actualFamily             String
+  expectedIntent           String
+  actualIntent             String
+  score                     Float
+  sampleCount               Int
+  window                    String
+  startTimeSeconds          Float
+  text                      String
+  context                   String?
+  explanationText           String?
+  explanationGeneratedAt    DateTime?
+  explanationModel          String?
+  explanationPromptVersion  String?
+  replay                    Replay   @relation(fields: [replayId], references: [id], onDelete: Cascade)
+
+  @@unique([replayId, findingId])
+  @@index([playerId])
+  @@index([replayId, occurredAtSeconds])
+}
+
+model ReplayJob {
+  id        String   @id
+  createdBy String
+  status    String
+  result    String?
+  error     String?
+  createdAt DateTime
+  updatedAt DateTime
+
+  @@index([createdBy, createdAt])
+}
+
+model SupportRequest {
+  id        String   @id
+  createdBy String
+  email     String
+  subject   String
+  message   String
+  createdAt DateTime
+
+  @@index([createdBy, createdAt])
+  @@index([createdAt])
+}

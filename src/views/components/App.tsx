@@ -49,7 +49,11 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
       }
       if (options.autoCamera && replayPlayer) controller.setTrackedPlayer(replayPlayer.key);
     }
-    fieldPanel.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const field = fieldPanel.current;
+    if (field) {
+      const top = field.getBoundingClientRect().top + window.scrollY - 24;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }
   };
   return <main className="app-shell">
     <ReplayToolbar
@@ -94,9 +98,7 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
         state={state.currentReplayState}
         players={state.players}
         trackedPlayerKey={state.trackedPlayerKey}
-        goals={state.metadata?.goals ?? []}
         onTrackPlayer={key => controller.setTrackedPlayer(key)}
-        onGoal={time => controller.seek(time)}
         predictionPlayers={state.playerPredictions.players}
         ghostCarsEnabled={ghostCarsEnabled}
         ghostHorizon={ghostHorizon}

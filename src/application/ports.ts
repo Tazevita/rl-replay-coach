@@ -93,3 +93,14 @@ export interface MistakeExplanationProvider {
 export interface PlayerWeaknessesProvider {
   analyze(player: PlayerMistakesResponse): Promise<{ content: PlayerWeaknessesContent; model: string }>;
 }
+
+export interface SupportRequestRepository {
+  create(record: {
+    id: string;
+    createdBy: string;
+    email: string;
+    subject: string;
+    message: string;
+    createdAt: string;
+  }): Promise<void>;
+}

@@ -9,7 +9,7 @@ import type { ReplayMetadata } from "../../replay/types";
 import { AnalysisPanel, calculateWhoThrew, predictionHorizonFrom } from "./AnalysisPanel";
 import { LoadingOverlay } from "./LoadingOverlay";
 import { PlaybackControls } from "./PlaybackControls";
-import { GhostCarSettings, GoalList, PlayerSidebar, PlayerTracker } from "./PlayerSidebar";
+import { GhostCarSettings, PlayerSidebar, PlayerTracker } from "./PlayerSidebar";
 import { ReplayToolbar, Scoreboard, UploadControl, ViewSelector } from "./ReplayToolbar";
 import { useReplayKeyboard } from "../hooks/use-replay-keyboard";
 import { AuthGate } from "./AuthGate";
@@ -131,26 +131,21 @@ describe("playback and players", () => {
     expect(speed).toHaveBeenCalledWith(2);
   });
 
-  it("selects tracked players and seeks from goals", async () => {
+  it("selects tracked players", async () => {
     const track = vi.fn();
-    const goal = vi.fn();
     const players = [{ key: "0:Alpha", name: "Alpha", team: 0 }];
-    render(<><PlayerTracker players={players} selected={null} onChange={track} /><GoalList goals={metadata.goals} onGoal={goal} /></>);
+    render(<PlayerTracker players={players} selected={null} onChange={track} />);
     await userEvent.selectOptions(screen.getByLabelText("Auto track player"), "0:Alpha");
     expect(track).toHaveBeenCalledWith("0:Alpha");
-    await userEvent.click(screen.getByRole("button", { name: /Alpha/ }));
-    expect(goal).toHaveBeenCalledWith(7);
-    expect(screen.getByText("<b>Alpha</b>")).toBeVisible();
-    expect(document.querySelector("b")).not.toBeInTheDocument();
   });
 
   it("renders live player details", () => {
-    render(<PlayerSidebar state={{ frameIndex: 4, ball: { x: 0, y: 0, z: 250 }, cars: [{ id: 1, name: "Alpha", team: 0, x: 0, y: 0, z: 100, yaw: 0, rotation: null }] }} players={[]} trackedPlayerKey={null} goals={[]} onTrackPlayer={vi.fn()} onGoal={vi.fn()} predictionPlayers={[]} ghostCarsEnabled={false} ghostHorizon="0-1" selectedGhostPlayerIds={[]} onGhostCarsEnabled={vi.fn()} onGhostHorizon={vi.fn()} onGhostPlayers={vi.fn()} />);
+    render(<PlayerSidebar state={{ frameIndex: 4, ball: { x: 0, y: 0, z: 250 }, cars: [{ id: 1, name: "Alpha", team: 0, x: 0, y: 0, z: 100, yaw: 0, rotation: null }] }} players={[]} trackedPlayerKey={null} onTrackPlayer={vi.fn()} predictionPlayers={[]} ghostCarsEnabled={false} ghostHorizon="0-1" selectedGhostPlayerIds={[]} onGhostCarsEnabled={vi.fn()} onGhostHorizon={vi.fn()} onGhostPlayers={vi.fn()} />);
     expect(screen.getByText("Alpha")).toBeVisible();
   });
 
   it("can hide all ghost controls while retaining player tracking", () => {
-    render(<PlayerSidebar state={{ frameIndex: 0, ball: null, cars: [] }} players={[{ key: "0:Alpha", name: "Alpha", team: 0 }]} trackedPlayerKey={null} goals={[]} onTrackPlayer={vi.fn()} onGoal={vi.fn()} predictionPlayers={[]} ghostCarsEnabled={false} ghostHorizon="0-1" selectedGhostPlayerIds={[]} onGhostCarsEnabled={vi.fn()} onGhostHorizon={vi.fn()} onGhostPlayers={vi.fn()} showGhosts={false} />);
+    render(<PlayerSidebar state={{ frameIndex: 0, ball: null, cars: [] }} players={[{ key: "0:Alpha", name: "Alpha", team: 0 }]} trackedPlayerKey={null} onTrackPlayer={vi.fn()} predictionPlayers={[]} ghostCarsEnabled={false} ghostHorizon="0-1" selectedGhostPlayerIds={[]} onGhostCarsEnabled={vi.fn()} onGhostHorizon={vi.fn()} onGhostPlayers={vi.fn()} showGhosts={false} />);
     expect(screen.getByLabelText("Auto track player")).toBeVisible();
     expect(screen.queryByRole("checkbox", { name: "Enable ghost cars" })).not.toBeInTheDocument();
   });
@@ -235,32 +230,38 @@ describe("analysis", () => {
     expect(analysis.events[0].findings.map(finding => finding.id)).toEqual(["blue-nav", "blue-plain", "blue-higher-score"]);
   });
 
-  it("renders both teams, factual relations, navigation variants, and dynamic pre-roll", async () => {
+  it("renders both teams, factual relations, navigation variants, and fixed mistake context", async () => {
     const navigate = vi.fn();
     render(<AnalysisPanel teams={[team("blue"), team("orange")]} processing={false} uploadError={null} onNavigate={navigate} />);
     expect(screen.getByText("Blue <unsafe> team")).toBeVisible();
     expect(screen.getByText("Orange team")).toBeVisible();
     expect(screen.getByText("Goal scored 1")).toBeVisible();
     expect(screen.getByText("Goal conceded 1")).toBeVisible();
-    expect(screen.getAllByText("4.5s context")).toHaveLength(2);
+    expect(screen.getAllByText("exact moment")).toHaveLength(2);
     expect(screen.getAllByText("far rotate (recover)")).toHaveLength(2);
     expect(screen.getAllByText("68% confidence")).toHaveLength(2);
     expect(screen.getAllByText("pressure (engage)")).toHaveLength(2);
     expect(screen.getAllByText("81% confidence")).toHaveLength(2);
     expect(screen.getAllByText("No navigation finding")[0].closest("button")).toBeNull();
     await userEvent.click(screen.getAllByRole("button", { name: /Safe <model> text/ })[0]);
-    expect(navigate).toHaveBeenCalledWith(7.5);
-    await userEvent.click(screen.getByRole("checkbox", { name: "Include context before mistakes" }));
-    expect(screen.getAllByText("exact moment")).toHaveLength(2);
-    await userEvent.click(screen.getByRole("checkbox", { name: "Auto-switch ghost" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Auto-switch camera" }));
-    await userEvent.click(screen.getAllByRole("button", { name: /Safe <model> text/ })[0]);
     expect(navigate).toHaveBeenCalledWith(12, {
       subject: { displayName: "Alpha" },
       teamId: "blue",
       autoGhost: true,
-      autoCamera: true,
+      autoCamera: false,
       ghostHorizon: "1-2",
+    });
+    await userEvent.click(screen.getByRole("checkbox", { name: "3 Seconds Before Mistake" }));
+    expect(screen.getAllByText("3s context")).toHaveLength(2);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Auto-switch ghost" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Auto-switch camera" }));
+    await userEvent.click(screen.getAllByRole("button", { name: /Safe <model> text/ })[0]);
+    expect(navigate).toHaveBeenCalledWith(9, {
+      subject: { displayName: "Alpha" },
+      teamId: "blue",
+      autoGhost: false,
+      autoCamera: true,
+      ghostHorizon: undefined,
     });
     await userEvent.click(screen.getByRole("button", { name: /Goal scored 1/ }));
     expect(navigate).toHaveBeenCalledWith(12);
@@ -287,6 +288,22 @@ describe("analysis", () => {
     await userEvent.click(screen.getByRole("button", { name: "Explain mistake" }));
     expect(mistakesGateway.explain).toHaveBeenCalledWith("replay-1:blue-nav");
     expect(await screen.findByText(explanation.text)).toBeVisible();
+  });
+
+  it("offers explanations for mistakes that are not sustained", () => {
+    const analysis = team("blue");
+    analysis.events[0].findings[0].extensions!.mistake!.sustained = false;
+
+    render(<AnalysisPanel
+      teams={[analysis]}
+      processing={false}
+      uploadError={null}
+      replayId="replay-1"
+      mistakesGateway={{ getByUsername: vi.fn(), explain: vi.fn(), getWeaknesses: vi.fn() }}
+      onNavigate={vi.fn()}
+    />);
+
+    expect(screen.getByRole("button", { name: "Explain mistake" })).toBeVisible();
   });
 
   it("renders empty events, empty findings, and upload errors", () => {

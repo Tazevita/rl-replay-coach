@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProcessReplayJob } from "../../application/process-replay-job";
 import type { ExplainMistake } from "../../application/explain-mistake";
 import type { AnalyzePlayerWeaknesses } from "../../application/analyze-player-weaknesses";
-import type { ReplayRepository } from "../../application/ports";
+import type { ReplayRepository, SupportRequestRepository } from "../../application/ports";
 import { replayData, validBundle } from "../../test/fixtures";
 import { createReplayHttpHandler, MAX_UPLOAD_BYTES, type AuthenticateRequest } from "./replay-api";
 
@@ -15,9 +15,10 @@ async function serve(
   repository: ReplayRepository,
   explainMistake: Pick<ExplainMistake, "execute"> = { execute: vi.fn() },
   analyzePlayerWeaknesses: Pick<AnalyzePlayerWeaknesses, "execute"> = { execute: vi.fn() },
-  authenticate: AuthenticateRequest = async () => "user-a",
+  authenticate: AuthenticateRequest = async () => ({ id: "user-a", email: "player@example.com" }),
+  supportRequests?: SupportRequestRepository,
 ): Promise<string> {
-  const handler = createReplayHttpHandler(processReplayJob, repository, explainMistake, analyzePlayerWeaknesses, authenticate);
+  const handler = createReplayHttpHandler(processReplayJob, repository, explainMistake, analyzePlayerWeaknesses, authenticate, supportRequests);
   const server = createServer((request, response) => handler(request, response, () => {
     response.statusCode = 404;
     response.end();
@@ -70,6 +71,37 @@ describe("replay HTTP adapter", () => {
     const response = await fetch(`${base}/api/player-mistakes?username=Alpha`);
     expect(response.status).toBe(401);
     expect(repository.getPlayerMistakes).not.toHaveBeenCalled();
+  });
+
+  it("stores a support request with the authenticated account email", async () => {
+    const supportRequests = { create: vi.fn(async () => undefined) };
+    const base = await serve(fakeJobs(), fakeRepository(), undefined, undefined, undefined, supportRequests);
+    const response = await fetch(`${base}/api/support-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject: "Replay will not load", message: "The viewer remains on the loading screen." }),
+    });
+
+    expect(response.status).toBe(204);
+    expect(supportRequests.create).toHaveBeenCalledWith(expect.objectContaining({
+      createdBy: "user-a",
+      email: "player@example.com",
+      subject: "Replay will not load",
+      message: "The viewer remains on the loading screen.",
+    }));
+  });
+
+  it("rejects invalid support requests", async () => {
+    const supportRequests = { create: vi.fn(async () => undefined) };
+    const base = await serve(fakeJobs(), fakeRepository(), undefined, undefined, undefined, supportRequests);
+    const response = await fetch(`${base}/api/support-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject: "", message: "" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(supportRequests.create).not.toHaveBeenCalled();
   });
 
   it("serves a stored replay ID and returns 404 for an unknown ID", async () => {
@@ -163,7 +195,10 @@ describe("replay HTTP adapter", () => {
 
   it("looks up saved mistakes only for the authenticated uploader", async () => {
     const repository = fakeRepository();
-    const authenticate: AuthenticateRequest = async request => request.headers.authorization?.slice("Bearer ".length);
+    const authenticate: AuthenticateRequest = async request => {
+      const id = request.headers.authorization?.slice("Bearer ".length);
+      return id ? { id, email: `${id}@example.com` } : undefined;
+    };
     const base = await serve(fakeJobs(), repository, undefined, undefined, authenticate);
     const first = await fetch(`${base}/api/player-mistakes?username=${encodeURIComponent(" Alpha ")}&replays=5`, { headers: { Authorization: "Bearer user-a" } });
     const second = await fetch(`${base}/api/player-mistakes?username=${encodeURIComponent(" Alpha ")}&replays=50`, { headers: { Authorization: "Bearer user-b" } });

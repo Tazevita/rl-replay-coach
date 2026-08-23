@@ -1,7 +1,7 @@
 import type { MistakeExplanationProvider, ReplayRepository } from "./ports";
 import { mistakeExplanationResponseSchema, mistakeExplanationSchema, type MistakeExplanationResponse } from "../shared/contracts/player-mistakes";
 
-export const MISTAKE_EXPLANATION_PROMPT_VERSION = "1";
+export const MISTAKE_EXPLANATION_PROMPT_VERSION = "2";
 
 export class MistakeNotFoundError extends Error {}
 export class MistakeContextUnavailableError extends Error {}
@@ -28,7 +28,7 @@ export class ExplainMistake {
   private async generate(id: string, createdBy: string): Promise<MistakeExplanationResponse> {
     const mistake = await this.dependencies.repository.getMistake(id, createdBy);
     if (!mistake) throw new MistakeNotFoundError("Mistake not found.");
-    if (mistake.explanation) {
+    if (mistake.explanation?.promptVersion === MISTAKE_EXPLANATION_PROMPT_VERSION) {
       return mistakeExplanationResponseSchema.parse({ mistakeId: id, explanation: mistake.explanation });
     }
     if (!mistake.replayContext?.samples.length) {

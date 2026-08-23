@@ -136,7 +136,7 @@ export class SupabaseReplayRepository implements ReplayRepository {
       for (const event of team.events) {
         for (const finding of event.findings) {
           const mistake = finding.extensions?.mistake;
-          if (finding.kind !== "disagreement" || !mistake?.sustained || !finding.subject?.playerId) continue;
+          if (finding.kind !== "disagreement" || !mistake || !finding.subject?.playerId) continue;
           mistakes.push({
             id: `${record.id}:${finding.id}`,
             finding_id: finding.id,
@@ -157,7 +157,7 @@ export class SupabaseReplayRepository implements ReplayRepository {
             expected_confidence: mistake.confidence.expected,
             actual_confidence: mistake.confidence.actual,
             text: finding.text,
-            context: sampleContext(mistake.startTimeSeconds),
+            context: sampleContext(event.occurredAtSeconds),
           });
         }
       }
@@ -283,9 +283,9 @@ export class SupabaseReplayRepository implements ReplayRepository {
     if (!replay) return undefined;
 
     const savedContext = row.context ? mistakeReplayContextSchema.parse(row.context) : null;
-    if (!savedContext || Math.abs(savedContext.endSeconds - row.start_time_seconds) > 0.001) {
+    if (!savedContext || Math.abs(savedContext.endSeconds - row.occurred_at_seconds) > 0.001) {
       const replayData = rrrocketReplaySchema.parse(await this.objects.read(replay.replay_object_key));
-      row.context = createMistakeContextSampler(replayData)(row.start_time_seconds);
+      row.context = createMistakeContextSampler(replayData)(row.occurred_at_seconds);
       unwrap(await this.client.from("mistakes").update({ context: row.context }).eq("id", id), "repair mistake context");
     }
     return this.toMistake(row, replay);
@@ -303,7 +303,7 @@ export class SupabaseReplayRepository implements ReplayRepository {
       explanation_generated_at: value.generatedAt,
       explanation_model: value.model,
       explanation_prompt_version: value.promptVersion,
-    }).eq("id", id).is("explanation_text", null), "save mistake explanation");
+    }).eq("id", id), "save mistake explanation");
     return (await this.getMistake(id, createdBy))?.explanation ?? undefined;
   }
 

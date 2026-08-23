@@ -13,3 +13,4 @@ input/*.sqlite-shm
 input/*.sqlite-wal
 supabase/.temp/
 api/_bundle.mjs
+.local-data/

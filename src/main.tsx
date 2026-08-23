@@ -11,6 +11,8 @@ import { authenticatedFetch } from "./adapters/http/authenticated-fetch";
 import { AuthGate } from "./views/components/AuthGate";
 import { HttpReplayHistoryGateway } from "./adapters/http/replay-history-gateway";
 import { ReplayHistoryPage } from "./views/components/ReplayHistoryPage";
+import { SupportPage } from "./views/components/SupportPage";
+import { HttpSupportGateway } from "./adapters/http/support-gateway";
 import "../styles.css";
 
 const root = document.getElementById("root");
@@ -28,6 +30,7 @@ function AuthenticatedApp({ session }: { session: Session }) {
   const request = useMemo(() => authenticatedFetch(() => accessToken.current), []);
   const mistakesGateway = useMemo(() => new HttpPlayerMistakesGateway(request), [request]);
   const historyGateway = useMemo(() => new HttpReplayHistoryGateway(request), [request]);
+  const supportGateway = useMemo(() => new HttpSupportGateway(request), [request]);
   const controller = useMemo(() => new DefaultReplayViewerController(
     new HttpReplayProcessingGateway(1_000, milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)), request),
     new HttpReplayDataGateway(request),
@@ -40,6 +43,8 @@ function AuthenticatedApp({ session }: { session: Session }) {
     ? <CheckPlayerPage gateway={mistakesGateway} />
     : path === "/replay-history"
       ? <ReplayHistoryPage gateway={historyGateway} />
+      : path === "/support"
+        ? <SupportPage email={session.user.email ?? ""} gateway={supportGateway} />
       : <App mistakesGateway={mistakesGateway} controller={controller} mode={path === "/who-threw" ? "who-threw" : "teams"} />;
 }
 

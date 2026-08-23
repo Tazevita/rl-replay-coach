@@ -13,6 +13,8 @@ export default defineConfig(({ command, mode }) => {
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(browserSupabaseUrl),
       "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(browserSupabaseKey),
       "import.meta.env.VITE_SIGNUPS_ENABLED": JSON.stringify(environment.VITE_SIGNUPS_ENABLED?.trim() || "false"),
+      "import.meta.env.VITE_TEST_MODE": JSON.stringify(environment.TEST_MODE?.trim() || "false"),
+      "import.meta.env.VITE_TEST_USER_EMAIL": JSON.stringify(environment.TEST_USER_EMAIL?.trim() || "local@test.invalid"),
     },
     test: {
       exclude: ["tests/browser/**", "node_modules/**"],

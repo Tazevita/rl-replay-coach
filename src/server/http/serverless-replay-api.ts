@@ -13,6 +13,7 @@ import { awsCredentialOptions } from "../../infrastructure/aws-credentials";
 import { R2ObjectReader } from "../../infrastructure/replay/r2-object-reader";
 import { SupabaseReplayJobRepository } from "../../infrastructure/replay/supabase-replay-job-repository";
 import { SupabaseReplayRepository } from "../../infrastructure/replay/supabase-replay-repository";
+import { SupabaseSupportRequestRepository } from "../../infrastructure/support/supabase-support-request-repository";
 import { replayParserJobSchema } from "../../shared/contracts/replay-parser-job";
 import { replayUploadCreatedSchema, replayUploadRequestSchema } from "../../shared/contracts/replay-upload";
 import { createReplayHttpHandler, type AuthenticateRequest } from "./replay-api";
@@ -74,6 +75,7 @@ export function createServerlessReplayApi(environment: Record<string, string | u
   const objects = new R2ObjectReader({ secretId: r2SecretId, region: awsRegion, ...aws });
   const repository = new SupabaseReplayRepository(supabase, objects);
   const jobs = new SupabaseReplayJobRepository(supabase);
+  const supportRequests = new SupabaseSupportRequestRepository(supabase);
   const finalizer = new FinalizeReplayUpload({
     repository,
     outputs: objects,
@@ -104,7 +106,8 @@ export function createServerlessReplayApi(environment: Record<string, string | u
     const match = request.headers.authorization?.match(/^Bearer\s+(.+)$/i);
     if (!match) return undefined;
     const { data, error } = await authClient.auth.getUser(match[1]);
-    return error ? undefined : data.user?.id;
+    const user = data.user;
+    return error || !user?.email ? undefined : { id: user.id, email: user.email };
   };
   const fallback = createReplayHttpHandler(
     { submit: async () => { throw new Error("Direct replay upload is required."); }, get: (id, createdBy) => jobs.get(id, createdBy) },
@@ -112,12 +115,14 @@ export function createServerlessReplayApi(environment: Record<string, string | u
     explainMistake,
     analyzePlayerWeaknesses,
     authenticate,
+    supportRequests,
   );
 
   return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     const requestUrl = new URL(request.url ?? "/", "http://localhost");
-    const createdBy = await authenticate(request);
-    if (!createdBy) return sendJson(response, 401, { error: "Sign in to continue." });
+    const user = await authenticate(request);
+    if (!user) return sendJson(response, 401, { error: "Sign in to continue." });
+    const createdBy = user.id;
 
     if (request.method === "POST" && requestUrl.pathname === "/api/replay-uploads") {
       try {

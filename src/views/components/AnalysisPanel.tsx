@@ -5,6 +5,8 @@ import type { PlayerMistakesGateway } from "../../adapters/http/player-mistakes-
 import { formatTime } from "../../replay/metadata";
 import type { PredictionHorizon } from "../../replay/predictions";
 
+const MISTAKE_CONTEXT_SECONDS = 3;
+
 export interface AnalysisNavigationOptions {
   subject: NonNullable<AnalysisFinding["subject"]>;
   teamId: TeamAnalysis["team"]["id"];
@@ -24,8 +26,8 @@ interface AnalysisPanelProps {
 }
 
 export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", replayId, mistakesGateway, onNavigate }: AnalysisPanelProps) {
-  const [includeContext, setIncludeContext] = useState(true);
-  const [autoGhost, setAutoGhost] = useState(false);
+  const [includeContext, setIncludeContext] = useState(false);
+  const [autoGhost, setAutoGhost] = useState(true);
   const [autoCamera, setAutoCamera] = useState(false);
   const throwerReport = mode === "who-threw" ? calculateWhoThrew(teams) : null;
   const status = uploadError
@@ -41,7 +43,7 @@ export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", 
         <span className={uploadError ? "error" : ""}>{status}</span>
         <label className="analysis-context-toggle">
           <input type="checkbox" checked={includeContext} onChange={event => setIncludeContext(event.currentTarget.checked)} />
-          <span>Include context before mistakes</span>
+          <span>3 Seconds Before Mistake</span>
         </label>
         {mode === "teams" && <label className="analysis-context-toggle">
           <input type="checkbox" checked={autoGhost} onChange={event => setAutoGhost(event.currentTarget.checked)} />
@@ -173,11 +175,11 @@ function Finding({ finding, includeContext, autoGhost, autoCamera, teamId, repla
   const [explanation, setExplanation] = useState<MistakeExplanation | null>(null);
   const [explaining, setExplaining] = useState(false);
   const [explanationError, setExplanationError] = useState<string | null>(null);
-  const mistakeId = replayId && mistake?.sustained && finding.kind === "disagreement"
+  const mistakeId = replayId && mistake && finding.kind === "disagreement"
     ? `${replayId}:${finding.id}`
     : null;
   const content = <>
-    {finding.navigation && <span className="finding-stamp">{formatTime(finding.navigation.anchorSeconds)}<small>{includeContext ? `${formatPreRoll(finding.navigation.preRollSeconds)} context` : "exact moment"}</small></span>}
+    {finding.navigation && <span className="finding-stamp">{formatTime(finding.navigation.anchorSeconds)}<small>{includeContext ? `${MISTAKE_CONTEXT_SECONDS}s context` : "exact moment"}</small></span>}
     <span className="finding-detail">
       <span>{finding.text}</span>
       {mistake && <span className="finding-comparison">
@@ -206,7 +208,7 @@ function Finding({ finding, includeContext, autoGhost, autoCamera, teamId, repla
     {explanationError && <span role="alert">{explanationError}</span>}
   </div>;
   if (!finding.navigation) return <div className="analysis-finding-shell"><div className={`analysis-finding tone-${finding.tone} no-navigation`}>{content}</div>{explanationAction}</div>;
-  const seekTime = Math.max(0, finding.navigation.anchorSeconds - (includeContext ? finding.navigation.preRollSeconds : 0));
+  const seekTime = Math.max(0, finding.navigation.anchorSeconds - (includeContext ? MISTAKE_CONTEXT_SECONDS : 0));
   const navigate = (): void => {
     if ((autoGhost || autoCamera) && finding.subject) {
       onNavigate(seekTime, {
@@ -228,10 +230,6 @@ function Finding({ finding, includeContext, autoGhost, autoCamera, teamId, repla
 export function predictionHorizonFrom(text: string): PredictionHorizon | undefined {
   const match = text.match(/(?:^|[^\d.])(0\s*-\s*1|1\s*-\s*2|2\s*-\s*3\.5)\s*(?:s|seconds?)?\b/i);
   return match?.[1].replaceAll(" ", "") as PredictionHorizon | undefined;
-}
-
-function formatPreRoll(seconds: number): string {
-  return `${Number.isInteger(seconds) ? seconds : seconds.toFixed(1)}s`;
 }
 
 function formatIntent(intent: string, family: string): string {

@@ -1,5 +1,4 @@
-import { formatTime } from "../../replay/metadata";
-import type { InterpolatedReplayState, ReplayGoal, ReplayPlayer } from "../../replay/types";
+import type { InterpolatedReplayState, ReplayPlayer } from "../../replay/types";
 import type { PlayerPrediction } from "../../shared/contracts/replay-analysis-v2";
 import { PREDICTION_HORIZONS, type PredictionHorizon } from "../../replay/predictions";
 
@@ -7,9 +6,7 @@ interface PlayerSidebarProps {
   state: InterpolatedReplayState;
   players: readonly ReplayPlayer[];
   trackedPlayerKey: string | null;
-  goals: readonly ReplayGoal[];
   onTrackPlayer(key: string | null): void;
-  onGoal(goalTime: number): void;
   predictionPlayers: readonly PlayerPrediction[];
   ghostCarsEnabled: boolean;
   ghostHorizon: PredictionHorizon;
@@ -26,7 +23,6 @@ export function PlayerSidebar(props: PlayerSidebarProps) {
     <section className="card">
       <div className="card-heading">
         <h2>Players</h2>
-        <span className="live-dot">LIVE POSITIONS</span>
       </div>
       <PlayerTracker players={props.players} selected={props.trackedPlayerKey} onChange={props.onTrackPlayer} />
       {props.showGhosts !== false && <GhostCarSettings
@@ -40,13 +36,12 @@ export function PlayerSidebar(props: PlayerSidebarProps) {
       />}
       <div className="players">
         {cars.length ? cars.map(car => <div className="player" key={car.id}>
-          <span className="player-swatch" style={{ background: car.team === 0 ? "#2864dc" : "#e96f2d" }} />
+          <span className="player-swatch" style={{ background: car.team === 0 ? "var(--blue)" : "var(--orange)" }} />
           <div><strong>{car.name}</strong><small>{car.team === 0 ? "Blue" : "Orange"} team</small></div>
           <span className="height">{(car.z / 100).toFixed(1)} m</span>
         </div>) : <p className="empty">Players are off-field.</p>}
       </div>
     </section>
-    <GoalList goals={props.goals} onGoal={props.onGoal} />
   </aside>;
 }
 
@@ -105,15 +100,4 @@ export function PlayerTracker({ players, selected, onChange }: { players: readon
       {players.map(player => <option key={player.key} value={player.key}>{player.name} ({player.team === 0 ? "Blue" : "Orange"})</option>)}
     </select>
   </label>;
-}
-
-export function GoalList({ goals, onGoal }: { goals: readonly ReplayGoal[]; onGoal(time: number): void }) {
-  return <section className="card event-card">
-    <h2>Goals</h2>
-    <div className="events">{goals.length ? goals.map(goal => <button className="event" type="button" key={`${goal.frame}:${goal.time}`} onClick={() => onGoal(goal.time)}>
-      <span className="event-time">{formatTime(goal.elapsed, false)}</span>
-      <span className="event-dot" style={{ background: goal.playerTeam === 0 ? "#2864dc" : "#e96f2d" }} />
-      <strong>{goal.playerName}</strong>
-    </button>) : <p className="empty">No goals in this replay.</p>}</div>
-  </section>;
 }
