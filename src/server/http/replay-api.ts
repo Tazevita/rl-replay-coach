@@ -20,6 +20,7 @@ import {
   MistakeNotFoundError,
 } from "../../application/explain-mistake";
 import type { ReplayRepository, ReplaySource, SupportRequestRepository } from "../../application/ports";
+import { assertReplayCapacity, ReplayLimitReachedError } from "../../application/replay-upload-limit";
 import { replayJobCreatedSchema } from "../../shared/contracts/replay-job";
 import { supportRequestSchema } from "../../shared/contracts/support-request";
 
@@ -225,6 +226,9 @@ export function createReplayHttpHandler(
     let source: ReplaySource | undefined;
     try {
       source = await receiveUpload(request, filename, createdBy);
+      if (!await repository.findBundleByHash(createdBy, source.contentHash)) {
+        await assertReplayCapacity(repository, createdBy);
+      }
       const jobId = await processReplayJob.submit(source);
       source = undefined;
       const statusUrl = `/api/replay-jobs/${encodeURIComponent(jobId)}`;
@@ -232,7 +236,7 @@ export function createReplayHttpHandler(
       sendJson(response, 202, replayJobCreatedSchema.parse({ jobId, status: "queued", statusUrl }));
     } catch (error) {
       await source?.dispose().catch(() => undefined);
-      sendJson(response, 500, { error: error instanceof Error ? error.message : "Replay processing failed." });
+      sendJson(response, error instanceof ReplayLimitReachedError ? 409 : 500, { error: error instanceof Error ? error.message : "Replay processing failed." });
     }
   };
 }

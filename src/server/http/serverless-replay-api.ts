@@ -5,6 +5,7 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { fromIni } from "@aws-sdk/credential-providers";
 import { createClient } from "@supabase/supabase-js";
 import { FinalizeReplayUpload } from "../../application/finalize-replay-upload";
+import { assertReplayCapacity, ReplayLimitReachedError } from "../../application/replay-upload-limit";
 import { AnalyzePlayerWeaknesses } from "../../application/analyze-player-weaknesses";
 import { ExplainMistake } from "../../application/explain-mistake";
 import { OpenAiMistakeExplanationProvider } from "../../infrastructure/ai/openai-mistake-explanation-provider";
@@ -134,6 +135,7 @@ export function createServerlessReplayApi(environment: Record<string, string | u
         const now = new Date().toISOString();
         const statusUrl = `/api/replay-jobs/${encodeURIComponent(id)}`;
         const existing = await repository.findBundleByHash(createdBy, upload.sha256);
+        if (!existing) await assertReplayCapacity(repository, createdBy);
         const sourceObjectKey = `jobs/${id}/source.replay`;
         await jobs.createUpload({
           id,
@@ -160,7 +162,7 @@ export function createServerlessReplayApi(environment: Record<string, string | u
           uploadHeaders: signed.headers,
         }));
       } catch (error) {
-        return sendJson(response, 400, { error: error instanceof Error ? error.message : "Could not initialize replay upload." });
+        return sendJson(response, error instanceof ReplayLimitReachedError ? 409 : 400, { error: error instanceof Error ? error.message : "Could not initialize replay upload." });
       }
     }
 

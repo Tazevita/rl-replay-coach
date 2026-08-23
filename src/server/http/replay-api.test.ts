@@ -180,6 +180,27 @@ describe("replay HTTP adapter", () => {
     }));
   });
 
+  it("rejects a new upload when the authenticated user has 50 saved replays", async () => {
+    const repository = fakeRepository();
+    vi.mocked(repository.listReplays).mockResolvedValue(Array.from({ length: 50 }, (_, index) => ({
+      id: `replay-${index}`,
+      filename: `match-${index}.replay`,
+      analyzedAt: "2026-08-19T12:00:00.000Z",
+    })));
+    const jobs = fakeJobs();
+    const base = await serve(jobs, repository);
+    const response = await fetch(`${base}/api/replays`, {
+      method: "POST",
+      headers: { "X-Replay-Filename": "match.replay" },
+      body: "new replay bytes",
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "You can store up to 50 replays. Delete a replay before uploading another." });
+    expect(repository.listReplays).toHaveBeenCalledWith("user-a");
+    expect(jobs.submit).not.toHaveBeenCalled();
+  });
+
   it("returns owned job status and hides unknown jobs", async () => {
     const jobs = fakeJobs();
     vi.mocked(jobs.get).mockImplementation(async id => id === "job-id"

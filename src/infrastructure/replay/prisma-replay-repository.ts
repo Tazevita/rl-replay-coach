@@ -15,6 +15,7 @@ import {
 import { replayAnalysisBundleV2Schema, type ReplayAnalysisBundleV2 } from "../../shared/contracts/replay-analysis-v2";
 import { replayHistorySchema, type ReplayHistoryItem } from "../../shared/contracts/replay-history";
 import { rrrocketReplaySchema, type RrrocketReplay } from "../../shared/contracts/rrrocket";
+import { MAX_REPLAYS_PER_USER, ReplayLimitReachedError } from "../../application/replay-upload-limit";
 
 type MistakeRow = Awaited<ReturnType<PrismaClient["mistake"]["findFirst"]>> & {};
 
@@ -84,6 +85,9 @@ export class PrismaReplayRepository implements ReplayRepository {
 
     try {
       await this.client.$transaction(async transaction => {
+        if (await transaction.replay.count({ where: { createdBy: record.createdBy } }) >= MAX_REPLAYS_PER_USER) {
+          throw new ReplayLimitReachedError();
+        }
         await transaction.replay.create({ data: {
           id: record.id,
           contentHash: record.contentHash,

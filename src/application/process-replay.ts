@@ -1,6 +1,7 @@
 import type { AnalysisProvider, ReplayParser, ReplayRepository, ReplaySource } from "./ports";
 import { replayAnalysisBundleV2Schema, type ReplayAnalysisBundleV2 } from "../shared/contracts/replay-analysis-v2";
 import { rrrocketReplaySchema } from "../shared/contracts/rrrocket";
+import { assertReplayCapacity } from "./replay-upload-limit";
 
 export interface ProcessReplayDependencies {
   parser: ReplayParser;
@@ -18,6 +19,7 @@ export class ProcessReplay {
     try {
       const existing = await this.dependencies.repository.findBundleByHash(source.createdBy, source.contentHash);
       if (existing) return existing;
+      await assertReplayCapacity(this.dependencies.repository, source.createdBy);
       parsed = await this.dependencies.parser.parse(source.path);
       const replay = rrrocketReplaySchema.parse(parsed.data);
       const analysis = await this.dependencies.analysisProvider.analyze(parsed.analysisInputPath);

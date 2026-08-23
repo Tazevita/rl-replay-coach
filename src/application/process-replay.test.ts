@@ -92,4 +92,20 @@ describe("ProcessReplay", () => {
     expect(analysisProvider.analyze).not.toHaveBeenCalled();
     expect(uploadDispose).toHaveBeenCalled();
   });
+
+  it("rejects a new replay when the creator already has 50 saved replays", async () => {
+    const replayRepository = repository();
+    vi.mocked(replayRepository.listReplays).mockResolvedValue(Array.from({ length: 50 }, (_, index) => ({
+      id: `replay-${index}`,
+      filename: `match-${index}.replay`,
+      analyzedAt: "2026-08-17T12:00:00.000Z",
+    })));
+    const { useCase, parser, analysisProvider } = setup({ repository: replayRepository });
+    const uploadDispose = vi.fn(async () => {});
+
+    await expect(useCase.execute(source(uploadDispose))).rejects.toThrow("You can store up to 50 replays");
+    expect(parser.parse).not.toHaveBeenCalled();
+    expect(analysisProvider.analyze).not.toHaveBeenCalled();
+    expect(uploadDispose).toHaveBeenCalled();
+  });
 });

@@ -2,6 +2,7 @@ import type { ReplayRepository } from "./ports";
 import { replayAnalysisRunnerJsonSchema } from "../infrastructure/analysis/replay-analysis-runner-json-adapter";
 import { replayAnalysisBundleV2Schema, type ReplayAnalysisBundleV2 } from "../shared/contracts/replay-analysis-v2";
 import { rrrocketReplaySchema } from "../shared/contracts/rrrocket";
+import { assertReplayCapacity } from "./replay-upload-limit";
 
 export interface ReplayOutputReader {
   read(objectKey: string): Promise<unknown>;
@@ -25,6 +26,7 @@ export class FinalizeReplayUpload {
   }): Promise<ReplayAnalysisBundleV2> {
     const existing = await this.dependencies.repository.findBundleByHash(job.createdBy, job.contentHash);
     if (existing) return existing;
+    await assertReplayCapacity(this.dependencies.repository, job.createdBy);
 
     const [replayValue, analysisValue] = await Promise.all([
       this.dependencies.outputs.read(job.parsedObjectKey),
