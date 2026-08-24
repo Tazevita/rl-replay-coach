@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { createClient, type Session } from "@supabase/supabase-js";
 
+type AuthMode = "sign-in" | "sign-up" | "verify-sign-up" | "forgot-password" | "verify-recovery" | "reset-password";
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
 export function areSignupsEnabled(value: string | undefined): boolean {
@@ -20,6 +22,41 @@ function withTimeout<T>(request: PromiseLike<T>, message: string): Promise<T> {
   ]);
 }
 
+export function PasswordField({
+  label,
+  value,
+  autoComplete,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  autoComplete: "current-password" | "new-password";
+  onChange(value: string): void;
+}) {
+  const [visible, setVisible] = useState(false);
+  const inputId = label.toLowerCase().replaceAll(" ", "-");
+
+  return <label htmlFor={inputId}>{label}
+    <span className="auth-password-field">
+      <input
+        id={inputId}
+        type={visible ? "text" : "password"}
+        autoComplete={autoComplete}
+        minLength={6}
+        required
+        value={value}
+        onChange={event => onChange(event.currentTarget.value)}
+      />
+      <button
+        type="button"
+        aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
+        aria-pressed={visible}
+        onClick={() => setVisible(current => !current)}
+      >{visible ? "Hide" : "Show"}</button>
+    </span>
+  </label>;
+}
+
 export function AuthGate({ children }: { children(session: Session): ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(testMode ? {
     access_token: "local-test-token",
@@ -31,7 +68,9 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
   } : undefined);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"sign-in" | "sign-up" | "forgot-password" | "reset-password">("sign-in");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [mode, setMode] = useState<AuthMode>("sign-in");
   const [message, setMessage] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
 
@@ -68,6 +107,30 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
     {children(session)}
   </>;
 
+  const changeMode = (nextMode: AuthMode): void => {
+    setMode(nextMode);
+    setPassword("");
+    setConfirmPassword("");
+    setOtp("");
+    setMessage(undefined);
+  };
+
+  const resendOtp = async (): Promise<void> => {
+    if (!supabase || (mode !== "verify-sign-up" && mode !== "verify-recovery")) return;
+    setSubmitting(true);
+    setMessage(undefined);
+    try {
+      const error = mode === "verify-sign-up"
+        ? (await withTimeout(supabase.auth.resend({ type: "signup", email: email.trim() }), "The account service did not respond. Try again.")).error
+        : (await withTimeout(supabase.auth.resetPasswordForEmail(email.trim()), "The account service did not respond. Try again.")).error;
+      setMessage(error ? error.message : "A new verification code has been sent.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not connect to the account service.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
     if (!supabase) return;
@@ -75,19 +138,32 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
     setMessage(undefined);
     try {
       if (mode === "forgot-password") {
-        const redirectTo = `${window.location.origin}${window.location.pathname}`;
         const result = await withTimeout(
-          supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo }),
+          supabase.auth.resetPasswordForEmail(email.trim()),
           "The account service did not respond. Try again.",
         );
         if (result.error) return setMessage(result.error.message);
-        setMessage("If an account exists for that email, a password reset link is on its way.");
+        setMode("verify-recovery");
+        setMessage("Enter the six-digit code sent to your email.");
+        return;
+      }
+      if (mode === "verify-sign-up" || mode === "verify-recovery") {
+        const result = await withTimeout(supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: otp,
+          type: mode === "verify-sign-up" ? "email" : "recovery",
+        }), "The account service did not respond. Try again.");
+        if (result.error) return setMessage(result.error.message);
+        setOtp("");
+        if (mode === "verify-recovery") setMode("reset-password");
         return;
       }
       if (mode === "reset-password") {
+        if (password !== confirmPassword) return setMessage("Passwords do not match.");
         const result = await withTimeout(supabase.auth.updateUser({ password }), "The account service did not respond. Try again.");
         if (result.error) return setMessage(result.error.message);
         setPassword("");
+        setConfirmPassword("");
         setMode("sign-in");
         return;
       }
@@ -96,12 +172,16 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
         setMessage("New account registration is temporarily closed.");
         return;
       }
+      if (mode === "sign-up" && password !== confirmPassword) return setMessage("Passwords do not match.");
       const request = mode === "sign-in"
-        ? supabase.auth.signInWithPassword({ email, password })
-        : supabase.auth.signUp({ email, password });
+        ? supabase.auth.signInWithPassword({ email: email.trim(), password })
+        : supabase.auth.signUp({ email: email.trim(), password });
       const result = await withTimeout(request, "The account service did not respond. Check the Supabase browser configuration and try again.");
       if (result.error) return setMessage(result.error.message);
-      if (mode === "sign-up" && !result.data.session) setMessage("Check your email to confirm your account, then sign in.");
+      if (mode === "sign-up" && !result.data.session) {
+        setMode("verify-sign-up");
+        setMessage("Enter the six-digit code sent to your email.");
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not connect to the account service.");
     } finally {
@@ -112,25 +192,52 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
   return <main className="auth-page">
     <form className="auth-card" onSubmit={event => void submit(event)}>
       <p className="eyebrow">Replay Lab</p>
-      <h1>{mode === "sign-in" ? "Sign in" : mode === "sign-up" ? "Create account" : mode === "forgot-password" ? "Reset password" : "Choose a new password"}</h1>
+      <h1>{mode === "sign-in" ? "Sign in"
+        : mode === "sign-up" ? "Create account"
+          : mode === "forgot-password" ? "Reset password"
+            : mode === "verify-sign-up" ? "Verify your email"
+              : mode === "verify-recovery" ? "Enter reset code"
+                : "Choose a new password"}</h1>
       <p>{mode === "forgot-password"
-        ? "Enter your account email and we will send you a secure reset link."
+        ? "Enter your account email and we will send you a one-time code."
+        : mode === "verify-sign-up" || mode === "verify-recovery"
+          ? `We sent a six-digit code to ${email}.`
         : mode === "reset-password"
           ? "Use at least six characters for your new password."
           : "Your account keeps player scans limited to replays you uploaded."}</p>
       {!supabase && <p className="auth-error">Supabase browser authentication is not configured.</p>}
-      {mode !== "reset-password" && <label>Email<input type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.currentTarget.value)} /></label>}
-      {mode !== "forgot-password" && <label>Password<input type="password" autoComplete={mode === "sign-in" ? "current-password" : "new-password"} minLength={6} required value={password} onChange={event => setPassword(event.currentTarget.value)} /></label>}
+      {(mode === "sign-in" || mode === "sign-up" || mode === "forgot-password") && <label>Email<input type="email" autoComplete="email" required value={email} onChange={event => setEmail(event.currentTarget.value)} /></label>}
+      {(mode === "sign-in" || mode === "sign-up" || mode === "reset-password") && <PasswordField
+        label={mode === "reset-password" ? "New password" : "Password"}
+        value={password}
+        autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+        onChange={setPassword}
+      />}
+      {(mode === "sign-up" || mode === "reset-password") && <PasswordField label="Confirm password" value={confirmPassword} autoComplete="new-password" onChange={setConfirmPassword} />}
+      {(mode === "verify-sign-up" || mode === "verify-recovery") && <label>Verification code<input
+        className="auth-otp"
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        pattern="[0-9]{6}"
+        maxLength={6}
+        required
+        value={otp}
+        onChange={event => setOtp(event.currentTarget.value.replace(/\D/g, "").slice(0, 6))}
+      /></label>}
       {message && <p className="auth-message" role="status">{message}</p>}
       <button className="auth-submit" type="submit" disabled={!supabase || submitting}>{submitting
         ? "Please wait..."
         : mode === "sign-in" ? "Sign in"
           : mode === "sign-up" ? "Create account"
-            : mode === "forgot-password" ? "Send reset link"
-              : "Save new password"}</button>
-      {mode === "sign-in" && <button className="auth-switch" type="button" onClick={() => { setMode("forgot-password"); setMessage(undefined); }}>Forgot password?</button>}
+            : mode === "forgot-password" ? "Send reset code"
+              : mode === "verify-sign-up" ? "Verify account"
+                : mode === "verify-recovery" ? "Verify reset code"
+                  : "Save new password"}</button>
+      {(mode === "verify-sign-up" || mode === "verify-recovery") && <button className="auth-switch" type="button" disabled={submitting} onClick={() => void resendOtp()}>Resend code</button>}
+      {mode === "sign-in" && <button className="auth-switch" type="button" onClick={() => changeMode("forgot-password")}>Forgot password?</button>}
       {mode === "sign-in" && !signupsEnabled && <p className="auth-registration-closed">New account registration is temporarily closed.</p>}
-      {mode !== "reset-password" && (mode !== "sign-in" || signupsEnabled) && <button className="auth-switch" type="button" onClick={() => { setMode(mode === "sign-up" ? "sign-in" : mode === "sign-in" ? "sign-up" : "sign-in"); setMessage(undefined); }}>
+      {mode !== "reset-password" && (mode !== "sign-in" || signupsEnabled) && <button className="auth-switch" type="button" onClick={() => changeMode(mode === "sign-in" ? "sign-up" : "sign-in")}>
         {mode === "sign-up" ? "Already have an account? Sign in" : mode === "sign-in" ? "Need an account? Sign up" : "Back to sign in"}
       </button>}
     </form>

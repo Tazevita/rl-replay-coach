@@ -12,7 +12,7 @@ import { PlaybackControls } from "./PlaybackControls";
 import { PlayerSidebar, PlayerTracker, ProjectedCarSettings } from "./PlayerSidebar";
 import { ReplayToolbar, Scoreboard, UploadControl, ViewSelector } from "./ReplayToolbar";
 import { useReplayKeyboard } from "../hooks/use-replay-keyboard";
-import { areSignupsEnabled } from "./AuthGate";
+import { areSignupsEnabled, PasswordField } from "./AuthGate";
 
 afterEach(cleanup);
 
@@ -21,6 +21,20 @@ describe("authentication", () => {
     expect(areSignupsEnabled(undefined)).toBe(true);
     expect(areSignupsEnabled("true")).toBe(true);
     expect(areSignupsEnabled("false")).toBe(false);
+  });
+
+  it("shows passwords on request and asks users to confirm new passwords", async () => {
+    render(<>
+      <PasswordField label="Password" value="secret" autoComplete="new-password" onChange={vi.fn()} />
+      <PasswordField label="Confirm password" value="secret" autoComplete="new-password" onChange={vi.fn()} />
+    </>);
+    const password = screen.getByLabelText("Password") as HTMLInputElement;
+    expect(screen.getByLabelText("Confirm password")).toHaveAttribute("type", "password");
+    expect(password).toHaveAttribute("type", "password");
+
+    await userEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(password).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "Hide password" })).toHaveAttribute("aria-pressed", "true");
   });
 });
 
