@@ -133,7 +133,7 @@ describe("playback and players", () => {
     const toggle = vi.fn();
     const seek = vi.fn();
     const speed = vi.fn();
-    const props = { available: true, playhead: 5, timelineStart: 0, duration: 20, speed: 1, goals: metadata.goals, onToggle: toggle, onSeek: seek, onSpeed: speed };
+    const props = { available: true, playhead: 5, timelineStart: 0, duration: 20, clock: "4:55", endClock: "0:00", speed: 1, goals: metadata.goals, onToggle: toggle, onSeek: seek, onSpeed: speed };
     const { rerender } = render(<PlaybackControls {...props} playing={false} />);
     await userEvent.click(screen.getByRole("button", { name: "Play replay" }));
     expect(toggle).toHaveBeenCalled();
@@ -143,6 +143,26 @@ describe("playback and players", () => {
     expect(seek).toHaveBeenCalledWith(10);
     await userEvent.selectOptions(screen.getByLabelText("Playback speed"), "2");
     expect(speed).toHaveBeenCalledWith(2);
+  });
+
+  it("shows the countdown and overtime clocks from the in-game replay", () => {
+    render(<PlaybackControls
+      available
+      playing={false}
+      playhead={5}
+      timelineStart={5}
+      duration={20}
+      clock="5:00"
+      endClock="OT +0:12"
+      speed={1}
+      goals={[]}
+      onToggle={vi.fn()}
+      onSeek={vi.fn()}
+      onSpeed={vi.fn()}
+    />);
+
+    expect(screen.getByText("5:00")).toBeVisible();
+    expect(screen.getByText("OT +0:12")).toBeVisible();
   });
 
   it("selects tracked players", async () => {
@@ -280,6 +300,22 @@ describe("analysis", () => {
     await userEvent.click(screen.getByRole("button", { name: /Goal scored 1/ }));
     expect(navigate).toHaveBeenCalledWith(12);
     expect(document.querySelector("unsafe")).not.toBeInTheDocument();
+  });
+
+  it("uses replay game clocks for analysis events and mistakes", () => {
+    const analysis = team("blue");
+    analysis.events[0].findings[0].navigation!.anchorSeconds = 13;
+    render(<AnalysisPanel
+      teams={[analysis]}
+      processing={false}
+      uploadError={null}
+      clockAtSourceTime={sourceTime => sourceTime === 12 ? "2:34" : "OT +0:08"}
+      onNavigate={vi.fn()}
+    />);
+
+    expect(screen.getAllByText("2:34")).toHaveLength(2);
+    expect(screen.getByText("OT +0:08")).toBeVisible();
+    expect(screen.queryByText("3:48")).not.toBeInTheDocument();
   });
 
   it("recognizes supported prediction windows in finding text", () => {

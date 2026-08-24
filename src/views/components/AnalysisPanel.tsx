@@ -22,10 +22,11 @@ interface AnalysisPanelProps {
   mode?: "teams" | "who-threw";
   replayId?: string | null;
   mistakesGateway?: PlayerMistakesGateway;
+  clockAtSourceTime?(sourceTime: number): string | undefined;
   onNavigate(sourceTime: number, options?: AnalysisNavigationOptions): void;
 }
 
-export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", replayId, mistakesGateway, onNavigate }: AnalysisPanelProps) {
+export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", replayId, mistakesGateway, clockAtSourceTime, onNavigate }: AnalysisPanelProps) {
   const [includeContext, setIncludeContext] = useState(false);
   const [autoProjection, setAutoProjection] = useState(true);
   const [autoCamera, setAutoCamera] = useState(false);
@@ -56,8 +57,8 @@ export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", 
       </div>
     </div>
     {mode === "who-threw"
-      ? <WhoThrewReport report={throwerReport} includeContext={includeContext} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />
-      : <TeamAnalysisTimeline teams={teams} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
+      ? <WhoThrewReport report={throwerReport} includeContext={includeContext} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} clockAtSourceTime={clockAtSourceTime} onNavigate={onNavigate} />
+      : <TeamAnalysisTimeline teams={teams} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} replayId={replayId} mistakesGateway={mistakesGateway} clockAtSourceTime={clockAtSourceTime} onNavigate={onNavigate} />}
   </section>;
 }
 
@@ -68,7 +69,7 @@ interface TimelineEvent {
   orange?: AnalysisEvent;
 }
 
-function TeamAnalysisTimeline({ teams, includeContext, autoProjection, autoCamera, replayId, mistakesGateway, onNavigate }: { teams: readonly TeamAnalysis[]; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+function TeamAnalysisTimeline({ teams, includeContext, autoProjection, autoCamera, replayId, mistakesGateway, clockAtSourceTime, onNavigate }: { teams: readonly TeamAnalysis[]; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; clockAtSourceTime?: AnalysisPanelProps["clockAtSourceTime"]; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   const blue = teams.find(team => team.team.id === "blue");
   const orange = teams.find(team => team.team.id === "orange");
   const events = buildTimeline(teams);
@@ -86,14 +87,14 @@ function TeamAnalysisTimeline({ teams, includeContext, autoProjection, autoCamer
     <div className="match-timeline">
       {events.map(event => <section className="match-timeline-event" key={event.occurredAtSeconds}>
         <div className="timeline-lane timeline-lane-blue">
-          {event.blue && blue && <AnalysisEventView event={event.blue} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId="blue" replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
+          {event.blue && blue && <AnalysisEventView event={event.blue} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId="blue" replayId={replayId} mistakesGateway={mistakesGateway} clockAtSourceTime={clockAtSourceTime} onNavigate={onNavigate} />}
         </div>
-        <button className="timeline-marker" type="button" onClick={() => onNavigate(event.occurredAtSeconds)} aria-label={`Jump to ${event.displayClock ?? formatTime(event.occurredAtSeconds)}`}>
-          <span>{event.displayClock ?? formatTime(event.occurredAtSeconds)}</span>
+        <button className="timeline-marker" type="button" onClick={() => onNavigate(event.occurredAtSeconds)} aria-label={`Jump to ${analysisClock(event.occurredAtSeconds, event.displayClock, clockAtSourceTime)}`}>
+          <span>{analysisClock(event.occurredAtSeconds, event.displayClock, clockAtSourceTime)}</span>
           <i aria-hidden="true" />
         </button>
         <div className="timeline-lane timeline-lane-orange">
-          {event.orange && orange && <AnalysisEventView event={event.orange} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId="orange" replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />}
+          {event.orange && orange && <AnalysisEventView event={event.orange} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId="orange" replayId={replayId} mistakesGateway={mistakesGateway} clockAtSourceTime={clockAtSourceTime} onNavigate={onNavigate} />}
         </div>
       </section>)}
     </div>
@@ -173,7 +174,7 @@ export function calculateWhoThrew(teams: readonly TeamAnalysis[]): WhoThrewResul
   };
 }
 
-function WhoThrewReport({ report, includeContext, autoCamera, replayId, mistakesGateway, onNavigate }: { report: WhoThrewResult | null; includeContext: boolean; autoCamera: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+function WhoThrewReport({ report, includeContext, autoCamera, replayId, mistakesGateway, clockAtSourceTime, onNavigate }: { report: WhoThrewResult | null; includeContext: boolean; autoCamera: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; clockAtSourceTime?: AnalysisPanelProps["clockAtSourceTime"]; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   if (!report) return <p className="who-threw-empty">A losing team with attributed mistakes is needed to identify who threw.</p>;
   return <article className={`team-report who-threw-report ${report.team.team.id}`}>
     <header className="who-threw-summary">
@@ -182,12 +183,12 @@ function WhoThrewReport({ report, includeContext, autoCamera, replayId, mistakes
     </header>
     <div className="analysis-events">{report.goals.map(goal => <section className="analysis-event relation-conceded" key={goal.event.id}>
       <button className="analysis-goal" type="button" onClick={() => onNavigate(goal.event.occurredAtSeconds)}>
-        <span className="event-stamp">{goal.event.displayClock ?? formatTime(goal.event.occurredAtSeconds)}<small>conceded</small></span>
+        <span className="event-stamp">{analysisClock(goal.event.occurredAtSeconds, goal.event.displayClock, clockAtSourceTime)}<small>conceded</small></span>
         <span className="event-detail"><strong>Goal conceded {goal.event.ordinal}</strong></span>
         <span className="goal-fault"><strong>{goal.faultPercent}%</strong><small>{report.player.displayName}'s fault</small></span>
       </button>
       <div className="analysis-findings">{goal.findings.length
-        ? goal.findings.map(finding => <Finding key={finding.id} finding={finding} includeContext={includeContext} autoProjection={false} autoCamera={autoCamera} teamId={report.team.team.id} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
+        ? goal.findings.map(finding => <Finding key={finding.id} finding={finding} includeContext={includeContext} autoProjection={false} autoCamera={autoCamera} teamId={report.team.team.id} replayId={replayId} mistakesGateway={mistakesGateway} clockAtSourceTime={clockAtSourceTime} onNavigate={onNavigate} />)
         : <div className="analysis-note">No mistake from {report.player.displayName} contributed to this goal.</div>}
       </div>
     </section>)}</div>
@@ -203,36 +204,36 @@ function sameSubject(left: NonNullable<AnalysisFinding["subject"]>, right: NonNu
   return left.displayName.trim().toLocaleLowerCase() === right.displayName.trim().toLocaleLowerCase();
 }
 
-export function TeamAnalysisCard({ team, includeContext = true, autoProjection = false, autoCamera = false, replayId, mistakesGateway, onNavigate }: { team: TeamAnalysis; includeContext?: boolean; autoProjection?: boolean; autoCamera?: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+export function TeamAnalysisCard({ team, includeContext = true, autoProjection = false, autoCamera = false, replayId, mistakesGateway, clockAtSourceTime, onNavigate }: { team: TeamAnalysis; includeContext?: boolean; autoProjection?: boolean; autoCamera?: boolean; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; clockAtSourceTime?: AnalysisPanelProps["clockAtSourceTime"]; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   return <article className={`team-report ${team.team.id}`}>
     <header className="team-report-header">
       <div><h3>{team.team.displayName} team</h3><p>{team.players.map(player => player.displayName).join(" + ") || "Roster unavailable"}</p></div>
       <span className="team-record">{team.score.for} scored · {team.score.against} conceded</span>
     </header>
     <div className="analysis-events">{team.events.length
-      ? team.events.map(event => <AnalysisEventView key={event.id} event={event} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId={team.team.id} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
+      ? team.events.map(event => <AnalysisEventView key={event.id} event={event} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId={team.team.id} replayId={replayId} mistakesGateway={mistakesGateway} clockAtSourceTime={clockAtSourceTime} onNavigate={onNavigate} />)
       : <p className="analysis-empty">No goals or goal-related findings were reported.</p>}
     </div>
   </article>;
 }
 
-function AnalysisEventView({ event, includeContext, autoProjection, autoCamera, teamId, replayId, mistakesGateway, onNavigate }: { event: AnalysisEvent; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; teamId: TeamAnalysis["team"]["id"]; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+function AnalysisEventView({ event, includeContext, autoProjection, autoCamera, teamId, replayId, mistakesGateway, clockAtSourceTime, onNavigate }: { event: AnalysisEvent; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; teamId: TeamAnalysis["team"]["id"]; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; clockAtSourceTime?: AnalysisPanelProps["clockAtSourceTime"]; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   const title = event.relation === "scored" ? `Goal scored ${event.ordinal}` : `Goal conceded ${event.ordinal}`;
   const findings = [...event.findings].sort((left, right) =>
     (right.extensions?.mistake?.score ?? -1) - (left.extensions?.mistake?.score ?? -1));
   return <section className={`analysis-event relation-${event.relation}`}>
     <button className="analysis-goal" type="button" onClick={() => onNavigate(event.occurredAtSeconds)}>
-      <span className="event-stamp">{event.displayClock ?? formatTime(event.occurredAtSeconds)}<small>{event.relation}</small></span>
+      <span className="event-stamp">{analysisClock(event.occurredAtSeconds, event.displayClock, clockAtSourceTime)}<small>{event.relation}</small></span>
       <span className="event-detail"><strong>{title}</strong></span>
     </button>
     <div className="analysis-findings">{findings.length
-      ? findings.map(finding => <Finding key={finding.id} finding={finding} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId={teamId} replayId={replayId} mistakesGateway={mistakesGateway} onNavigate={onNavigate} />)
+      ? findings.map(finding => <Finding key={finding.id} finding={finding} includeContext={includeContext} autoProjection={autoProjection} autoCamera={autoCamera} teamId={teamId} replayId={replayId} mistakesGateway={mistakesGateway} clockAtSourceTime={clockAtSourceTime} onNavigate={onNavigate} />)
       : <div className="analysis-note">No sustained high-confidence finding was reported.</div>}
     </div>
   </section>;
 }
 
-function Finding({ finding, includeContext, autoProjection, autoCamera, teamId, replayId, mistakesGateway, onNavigate }: { finding: AnalysisFinding; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; teamId: TeamAnalysis["team"]["id"]; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; onNavigate: AnalysisPanelProps["onNavigate"] }) {
+function Finding({ finding, includeContext, autoProjection, autoCamera, teamId, replayId, mistakesGateway, clockAtSourceTime, onNavigate }: { finding: AnalysisFinding; includeContext: boolean; autoProjection: boolean; autoCamera: boolean; teamId: TeamAnalysis["team"]["id"]; replayId?: string | null; mistakesGateway?: PlayerMistakesGateway; clockAtSourceTime?: AnalysisPanelProps["clockAtSourceTime"]; onNavigate: AnalysisPanelProps["onNavigate"] }) {
   const mistake = finding.extensions?.mistake;
   const [explanation, setExplanation] = useState<MistakeExplanation | null>(null);
   const [explaining, setExplaining] = useState(false);
@@ -241,7 +242,7 @@ function Finding({ finding, includeContext, autoProjection, autoCamera, teamId, 
     ? `${replayId}:${finding.id}`
     : null;
   const content = <>
-    {finding.navigation && <span className="finding-stamp">{formatTime(finding.navigation.anchorSeconds)}<small>{includeContext ? `${MISTAKE_CONTEXT_SECONDS}s context` : "exact moment"}</small></span>}
+    {finding.navigation && <span className="finding-stamp">{analysisClock(finding.navigation.anchorSeconds, undefined, clockAtSourceTime)}<small>{includeContext ? `${MISTAKE_CONTEXT_SECONDS}s context` : "exact moment"}</small></span>}
     <span className="finding-detail">{finding.text}</span>
   </>;
   const technicalDetails = mistake && <details className="finding-technical">
@@ -294,6 +295,10 @@ function Finding({ finding, includeContext, autoProjection, autoCamera, teamId, 
 export function predictionHorizonFrom(text: string): PredictionHorizon | undefined {
   const match = text.match(/(?:^|[^\d.])(0\s*-\s*1|1\s*-\s*2|2\s*-\s*3\.5)\s*(?:s|seconds?)?\b/i);
   return match?.[1].replaceAll(" ", "") as PredictionHorizon | undefined;
+}
+
+function analysisClock(sourceTime: number, fallback: string | undefined, clockAtSourceTime: AnalysisPanelProps["clockAtSourceTime"]): string {
+  return clockAtSourceTime?.(sourceTime) ?? fallback ?? formatTime(sourceTime);
 }
 
 function formatIntent(intent: string, family: string): string {

@@ -48,12 +48,16 @@ export function findSnapshotIndex(timeline: ReplayTimeline, time: number): numbe
 }
 
 export function nearestSourceTime(timeline: ReplayTimeline, sourceTime: number): number {
-  if (!timeline.snapshots.length) return 0;
+  return nearestSourceSnapshot(timeline, sourceTime)?.time ?? 0;
+}
+
+export function nearestSourceSnapshot(timeline: ReplayTimeline, sourceTime: number): ReplaySnapshot | undefined {
   let closest = timeline.snapshots[0];
+  if (!closest) return undefined;
   for (const snapshot of timeline.snapshots) {
     if (Math.abs(snapshot.sourceTime - sourceTime) < Math.abs(closest.sourceTime - sourceTime)) closest = snapshot;
   }
-  return closest.time;
+  return closest;
 }
 
 export function playerKey(player: Pick<ReplayCar, "name" | "team">): string {

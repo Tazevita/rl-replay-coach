@@ -87,6 +87,8 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
           playhead={state.playhead}
           timelineStart={state.timelineStart}
           duration={state.duration}
+          clock={formatGameClock(state.currentSnapshot ?? undefined)}
+          endClock={formatGameClock(controller.snapshotAtSourceTime(state.timelineEnd))}
           speed={state.speed}
           goals={state.metadata?.goals ?? []}
           onToggle={() => controller.togglePlayback()}
@@ -116,6 +118,10 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
       mode={mode}
       replayId={state.replayId}
       mistakesGateway={mistakesGateway}
+      clockAtSourceTime={sourceTime => {
+        const clock = formatGameClock(controller.snapshotAtSourceTime(sourceTime));
+        return clock === "--:--" ? undefined : clock;
+      }}
       onNavigate={navigateToSourceTime}
     />
   </main>;

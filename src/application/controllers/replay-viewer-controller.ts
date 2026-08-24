@@ -6,6 +6,7 @@ import {
   createReplayTimeline,
   findSnapshotIndex,
   listReplayPlayers,
+  nearestSourceSnapshot,
   nearestSourceTime,
   replayActorKey,
   replayStateAt,
@@ -76,6 +77,7 @@ export interface ReplayViewerController {
   tick(elapsedSeconds: number): void;
   seek(timeSeconds: number): void;
   seekToSourceTime(sourceTimeSeconds: number): void;
+  snapshotAtSourceTime(sourceTimeSeconds: number): ReplaySnapshot | undefined;
   skip(deltaSeconds: number): void;
   setSpeed(speed: number): void;
   setView(view: ReplayView): void;
@@ -194,6 +196,10 @@ export class DefaultReplayViewerController implements ReplayViewerController {
   seekToSourceTime(sourceTimeSeconds: number): void {
     if (!this.timeline.snapshots.length) return;
     this.seek(nearestSourceTime(this.timeline, sourceTimeSeconds));
+  }
+
+  snapshotAtSourceTime(sourceTimeSeconds: number): ReplaySnapshot | undefined {
+    return nearestSourceSnapshot(this.timeline, sourceTimeSeconds);
   }
 
   skip(deltaSeconds: number): void {
