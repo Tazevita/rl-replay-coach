@@ -14,6 +14,7 @@ import { HttpReplayHistoryGateway } from "./adapters/http/replay-history-gateway
 import { ReplayHistoryPage } from "./views/components/ReplayHistoryPage";
 import { SupportPage } from "./views/components/SupportPage";
 import { HttpSupportGateway } from "./adapters/http/support-gateway";
+import { GuidesPage } from "./views/components/GuidesPage";
 import "../styles.css";
 
 const root = document.getElementById("root");
@@ -46,7 +47,9 @@ function AuthenticatedApp({ session }: { session: Session }) {
       ? <ReplayHistoryPage gateway={historyGateway} />
       : path === "/support"
         ? <SupportPage email={session.user.email ?? ""} gateway={supportGateway} />
-      : <App mistakesGateway={mistakesGateway} controller={controller} mode={path === "/who-threw" ? "who-threw" : "teams"} />;
+        : path === "/guides"
+          ? <GuidesPage />
+          : <App mistakesGateway={mistakesGateway} controller={controller} mode={path === "/who-threw" ? "who-threw" : "teams"} />;
 }
 
 createRoot(root).render(

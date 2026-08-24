@@ -45,6 +45,7 @@ describe("CheckPlayerPage", () => {
       })),
     })), explain: vi.fn(async mistakeId => ({ mistakeId, explanation })), getWeaknesses: vi.fn(async () => weaknesses) };
     render(<CheckPlayerPage gateway={gateway} />);
+    expect(screen.getByRole("link", { name: /Watch the Player Analysis guide/ })).toHaveAttribute("href", "/guides#player-analysis");
     await userEvent.type(screen.getByLabelText("Player username"), "  Alpha  ");
     fireEvent.change(screen.getByLabelText("Replay context"), { target: { value: "5" } });
     await userEvent.click(screen.getByRole("button", { name: "Analyze player" }));

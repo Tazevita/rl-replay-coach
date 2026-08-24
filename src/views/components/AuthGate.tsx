@@ -60,6 +60,7 @@ export function AuthGate({ children }: { children(session: Session): ReactNode }
   if (session && mode !== "reset-password") return <>
     <div className="account-bar">
       <a href="/replay-history">Replay history</a>
+      <a href="/guides">Guides</a>
       <a href="/support">Support</a>
       <span>{session.user.email}</span>
       {!testMode && <button type="button" onClick={() => void supabase?.auth.signOut()}>Sign out</button>}

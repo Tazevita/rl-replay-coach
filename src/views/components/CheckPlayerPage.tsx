@@ -86,6 +86,7 @@ export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway })
       <p className="eyebrow">Player development</p>
       <h1>Find the pattern.<br /><span>Fix the next play.</span></h1>
       <p className="check-player-intro">Search a Rocket League username to review sustained decision mistakes from uploaded replays.</p>
+      <a className="context-guide-link" href="/guides#player-analysis">Watch the Player Analysis guide <span aria-hidden="true">→</span></a>
     </header>
 
     <form className="player-search" onSubmit={submit}>

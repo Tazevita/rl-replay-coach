@@ -76,6 +76,7 @@ describe("toolbar and upload", () => {
   it("prompts for a replay when none is loaded", () => {
     render(<ReplayToolbar metadata={null} view="2d" processing={false} onUpload={vi.fn()} onViewChange={vi.fn()} />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Add a replay");
+    expect(screen.getByRole("link", { name: "How to use this" })).toHaveAttribute("href", "/guides#replay-review");
   });
 
   it("renders scoreboard metadata safely and sends view actions", async () => {

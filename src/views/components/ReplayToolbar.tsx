@@ -20,6 +20,7 @@ export function ReplayToolbar(props: ReplayToolbarProps) {
     <div className="topbar-actions">
       <a className="check-player-link" href="/replay-history">Replay history</a>
       <a className="check-player-link" href="/check-player">Player Analysis</a>
+      <a className="check-player-link" href="/guides#replay-review">How to use this</a>
       {!props.whoThrew && <a className="check-player-link" href="/who-threw">Who threw?</a>}
       {props.whoThrew && <a className="check-player-link" href="/">Full analysis</a>}
       <UploadControl processing={props.processing} onUpload={props.onUpload} />
