@@ -73,7 +73,7 @@ export class OpenAiPlayerWeaknessesProvider implements PlayerWeaknessesProvider 
       },
       body: JSON.stringify({
         model: this.options.model,
-        max_output_tokens: 3_000,
+        max_output_tokens: 5_000,
         text: {
           format: {
             type: "json_schema",

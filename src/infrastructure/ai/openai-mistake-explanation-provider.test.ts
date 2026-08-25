@@ -31,7 +31,7 @@ describe("OpenAiMistakeExplanationProvider", () => {
     expect(request).toHaveBeenCalledWith("https://api.openai.com/v1/responses", expect.objectContaining({ method: "POST" }));
     const calls = request.mock.calls as unknown as Array<[string, RequestInit]>;
     const body = JSON.parse(String(calls[0][1].body));
-    expect(body).toMatchObject({ model: "gpt-5.6", max_output_tokens: 1_000 });
+    expect(body).toMatchObject({ model: "gpt-5.6", max_output_tokens: 2_000 });
     expect(body.input[0].content).toContain("at least one exact teammate name");
     expect(body.input[1].content).toContain("CLOSE_ROTATE");
     expect(JSON.parse(body.input[1].content)).toMatchObject({

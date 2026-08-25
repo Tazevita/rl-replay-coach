@@ -23,7 +23,7 @@ describe("OpenAiPlayerWeaknessesProvider", () => {
     await expect(provider.analyze(player)).resolves.toEqual({ content, model: "gpt-5.6-luna" });
     const calls = request.mock.calls as unknown as Array<[string, RequestInit]>;
     const body = JSON.parse(String(calls[0][1].body));
-    expect(body).toMatchObject({ model: "gpt-5.6-luna", max_output_tokens: 3_000, text: { format: { type: "json_schema", strict: true } } });
+    expect(body).toMatchObject({ model: "gpt-5.6-luna", max_output_tokens: 5_000, text: { format: { type: "json_schema", strict: true } } });
     expect(body.text.format.schema.properties.weaknesses.items.properties.workOn).toMatchObject({ maxLength: 500, pattern: "^[ -~]+$" });
     expect(JSON.parse(body.input[1].content).mistakes).toHaveLength(2);
     expect(body.input[0].content).toContain("Expected ENGAGE with actual RECOVER");

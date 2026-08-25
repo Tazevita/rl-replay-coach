@@ -74,7 +74,7 @@ export class OpenAiMistakeExplanationProvider implements MistakeExplanationProvi
       },
       body: JSON.stringify({
         model: this.options.model,
-        max_output_tokens: 1_000,
+        max_output_tokens: 2_000,
         input: [{
           role: "system",
           content: SYSTEM_PROMPT,
