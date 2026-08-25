@@ -32,6 +32,7 @@ export class FinalizeReplayUpload {
       this.dependencies.outputs.read(job.parsedObjectKey),
       this.dependencies.outputs.read(job.analysisObjectKey),
     ]);
+    if (isAnalysisFailure(analysisValue)) throw new Error(analysisValue.error);
     const replay = rrrocketReplaySchema.parse(replayValue);
     const analysis = replayAnalysisRunnerJsonSchema.parse(analysisValue);
     const id = this.dependencies.createId();
@@ -61,4 +62,14 @@ export class FinalizeReplayUpload {
       bundle,
     });
   }
+}
+
+function isAnalysisFailure(value: unknown): value is { status: "failed"; error: string } {
+  return typeof value === "object"
+    && value !== null
+    && "status" in value
+    && value.status === "failed"
+    && "error" in value
+    && typeof value.error === "string"
+    && value.error.length > 0;
 }

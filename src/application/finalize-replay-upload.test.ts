@@ -65,4 +65,29 @@ describe("FinalizeReplayUpload", () => {
     expect(outputs.read).not.toHaveBeenCalled();
     expect(repository.publish).not.toHaveBeenCalled();
   });
+
+  it("surfaces a deterministic Lambda analysis failure", async () => {
+    const repository = {
+      findBundleByHash: vi.fn(async () => undefined),
+      listReplays: vi.fn(async () => []),
+      publish: vi.fn(),
+    } as unknown as ReplayRepository;
+    const finalizer = new FinalizeReplayUpload({
+      repository,
+      outputs: { read: vi.fn(async (key: string) => key.includes("analysis")
+        ? { status: "failed", error: "this experiment requires a 2v2 replay; replay TeamSize is 3" }
+        : replayData) },
+      createId: () => "replay-id",
+      now: () => new Date("2026-08-19T00:00:00.000Z"),
+    });
+
+    await expect(finalizer.execute({
+      createdBy: "owner",
+      filename: "threes.replay",
+      contentHash: "hash",
+      parsedObjectKey: "jobs/job/parsed/replay.json",
+      analysisObjectKey: "jobs/job/analysis/replay.json",
+    })).rejects.toThrow("this experiment requires a 2v2 replay; replay TeamSize is 3");
+    expect(repository.publish).not.toHaveBeenCalled();
+  });
 });
