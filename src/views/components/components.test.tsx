@@ -225,7 +225,11 @@ describe("playback and players", () => {
       { id: "bravo", displayName: "Bravo", team: "orange" as const, samples: [] },
     ];
     const { rerender } = render(<ProjectedCarSettings players={predictionPlayers} enabled={false} horizon="0-1" selectedPlayerIds={["alpha", "bravo"]} onEnabled={enabled} onHorizon={horizon} onPlayers={players} />);
+    const projectionInfo = screen.getByLabelText("About Show projected cars");
+    await userEvent.click(projectionInfo);
+    expect(projectionInfo.closest("details")).toHaveAttribute("open");
     await userEvent.click(screen.getByRole("checkbox", { name: "Show projected cars" }));
+    expect(projectionInfo.closest("details")).not.toHaveAttribute("open");
     expect(enabled).toHaveBeenCalledWith(true);
 
     rerender(<ProjectedCarSettings players={predictionPlayers} enabled horizon="0-1" selectedPlayerIds={["alpha", "bravo"]} onEnabled={enabled} onHorizon={horizon} onPlayers={players} />);
@@ -299,6 +303,9 @@ describe("analysis", () => {
   it("renders both teams, factual relations, navigation variants, and fixed mistake context", async () => {
     const navigate = vi.fn();
     render(<AnalysisPanel teams={[team("blue"), team("orange")]} processing={false} uploadError={null} onNavigate={navigate} />);
+    for (const title of ["3 Seconds Before Mistake", "Auto-switch projection", "Auto-switch camera"]) {
+      expect(screen.getByLabelText(`About ${title}`)).toBeVisible();
+    }
     expect(screen.getByText("Blue <unsafe> team")).toBeVisible();
     expect(screen.getByText("Orange team")).toBeVisible();
     expect(screen.getByText("Goal scored 1")).toBeVisible();

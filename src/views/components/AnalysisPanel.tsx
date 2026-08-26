@@ -4,6 +4,7 @@ import type { MistakeExplanation } from "../../shared/contracts/player-mistakes"
 import type { PlayerMistakesGateway } from "../../adapters/http/player-mistakes-gateway";
 import { formatTime } from "../../replay/metadata";
 import type { PredictionHorizon } from "../../replay/predictions";
+import { InfoCard } from "./InfoCard";
 
 const MISTAKE_CONTEXT_SECONDS = 3;
 
@@ -42,18 +43,27 @@ export function AnalysisPanel({ teams, processing, uploadError, mode = "teams", 
       <div><h2>{mode === "who-threw" ? "Who threw?" : "Team analysis"}</h2><span className={uploadError ? "error" : ""}>{status}</span></div>
       <div className="analysis-heading-meta">
         <strong>Jump behavior</strong>
-        <label className="analysis-context-toggle">
-          <input type="checkbox" checked={includeContext} onChange={event => setIncludeContext(event.currentTarget.checked)} />
-          <span>3 Seconds Before Mistake</span>
-        </label>
-        {mode === "teams" && <label className="analysis-context-toggle">
-          <input type="checkbox" checked={autoProjection} onChange={event => setAutoProjection(event.currentTarget.checked)} />
-          <span>Auto-switch projection</span>
-        </label>}
-        <label className="analysis-context-toggle">
-          <input type="checkbox" checked={autoCamera} onChange={event => setAutoCamera(event.currentTarget.checked)} />
-          <span>Auto-switch camera</span>
-        </label>
+        <div className="control-with-info">
+          <label className="analysis-context-toggle">
+            <input type="checkbox" checked={includeContext} onChange={event => setIncludeContext(event.currentTarget.checked)} />
+            <span>3 Seconds Before Mistake</span>
+          </label>
+          <InfoCard title="3 Seconds Before Mistake">Starts playback three seconds before the marked mistake so you can see how the play developed. Turn it off to jump directly to the marked moment.</InfoCard>
+        </div>
+        {mode === "teams" && <div className="control-with-info">
+          <label className="analysis-context-toggle">
+            <input type="checkbox" checked={autoProjection} onChange={event => setAutoProjection(event.currentTarget.checked)} />
+            <span>Auto-switch projection</span>
+          </label>
+          <InfoCard title="Auto-switch projection">When you select a mistake, projected cars are enabled for the involved player and the matching prediction timeframe is selected when available.</InfoCard>
+        </div>}
+        <div className="control-with-info">
+          <label className="analysis-context-toggle">
+            <input type="checkbox" checked={autoCamera} onChange={event => setAutoCamera(event.currentTarget.checked)} />
+            <span>Auto-switch camera</span>
+          </label>
+          <InfoCard title="Auto-switch camera">When you select a mistake, the replay camera switches to follow the involved player. The current camera remains if that player cannot be matched.</InfoCard>
+        </div>
       </div>
     </div>
     {mode === "who-threw"

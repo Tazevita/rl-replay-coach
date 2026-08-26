@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { PlayerMistakesGateway } from "../../adapters/http/player-mistakes-gateway";
 import type { PlayerMistakesResponse, PlayerWeaknessesResponse } from "../../shared/contracts/player-mistakes";
+import { InfoCard } from "./InfoCard";
 
 function label(value: string): string {
   return value.toLowerCase().replaceAll("_", " ");
@@ -102,7 +103,10 @@ export function CheckPlayerPage({ gateway }: { gateway: PlayerMistakesGateway })
         <button type="submit" disabled={!username.trim() || loading}>{loading ? "Analyzing..." : "Analyze player"}</button>
       </div>
       <div className="replay-context-control">
-        <label htmlFor="replay-context-count">Replay context</label>
+        <div className="control-with-info">
+          <label htmlFor="replay-context-count">Replay context</label>
+          <InfoCard title="Replay context">Sets how many of this player's latest uploaded replays are searched for sustained mistakes and coaching patterns. More replays provide broader context, up to 50.</InfoCard>
+        </div>
         <input
           id="replay-context-count"
           type="range"

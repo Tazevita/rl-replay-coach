@@ -1,6 +1,7 @@
 import type { InterpolatedReplayState, ReplayPlayer } from "../../replay/types";
 import type { PlayerPrediction } from "../../shared/contracts/replay-analysis-v2";
 import { PREDICTION_HORIZONS, type PredictionHorizon } from "../../replay/predictions";
+import { InfoCard } from "./InfoCard";
 
 interface PlayerSidebarProps {
   state: InterpolatedReplayState;
@@ -67,10 +68,13 @@ export function ProjectedCarSettings({
     onPlayers(checked ? [...selectedPlayerIds, id] : selectedPlayerIds.filter(playerId => playerId !== id));
   };
   return <fieldset className="projected-settings" disabled={!players.length}>
-    <label className="projected-toggle">
-      <input type="checkbox" checked={enabled} onChange={event => onEnabled(event.currentTarget.checked)} />
-      <span>Show projected cars</span>
-    </label>
+    <div className="control-with-info">
+      <label className="projected-toggle">
+        <input type="checkbox" checked={enabled} onChange={event => onEnabled(event.currentTarget.checked)} />
+        <span>Show projected cars</span>
+      </label>
+      <InfoCard title="Show projected cars">Overlays each selected player's predicted position at the chosen timeframe so you can compare likely movement with what happens in the replay.</InfoCard>
+    </div>
     <label className="projected-horizon">
       <span>Prediction timeframe</span>
       <select aria-label="Prediction timeframe" value={horizon} disabled={!enabled || !players.length} onChange={event => onHorizon(event.currentTarget.value as PredictionHorizon)}>
