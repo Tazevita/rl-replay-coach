@@ -2,7 +2,7 @@ import { Canvas, type ThreeEvent, useFrame, useThree } from "@react-three/fiber"
 import { Edges, OrbitControls } from "@react-three/drei";
 import { type ComponentRef, type MutableRefObject, memo, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import type { ReplayViewerController } from "../../application/controllers/replay-viewer-controller";
+import { BALL_TRACKING_KEY, type ReplayViewerController } from "../../application/controllers/replay-viewer-controller";
 import { projectedCarsAt, type PredictionHorizon } from "../../replay/predictions";
 import { playerKey, replayActorKey } from "../../replay/timeline";
 import type { PlayerPredictions } from "../../shared/contracts/replay-analysis-v2";
@@ -14,6 +14,7 @@ const CORNER_RADIUS = 1792;
 const WORLD_SCALE = 0.01;
 const BLUE = "#43a5ff";
 const ORANGE = "#ff914d";
+const FREE_CAMERA_SPEED = 35;
 const BOOST_PADS = [
   { x: -3584, y: 0 }, { x: 3584, y: 0 },
   { x: -3584, y: -4096 }, { x: 3584, y: -4096 },
@@ -68,12 +69,38 @@ function ReplayScene(props: ThreeReplayViewportProps) {
   const autoInteracting = useRef(false);
   const wasAuto = useRef(false);
   const lastCameraReset = useRef(-1);
+  const movementKeys = useRef(new Set<string>());
   const projectedActors = useMemo<ProjectedActor[]>(() => {
     if (!props.projectedCarsEnabled) return [];
     return props.projectedPredictions.players
       .filter(player => props.selectedProjectedPlayerIds.has(player.id))
       .map(player => ({ id: player.id, name: player.displayName, team: player.team === "blue" ? 0 : 1 }));
   }, [props.projectedCarsEnabled, props.projectedPredictions, props.selectedProjectedPlayerIds]);
+
+  useEffect(() => {
+    const stopMoving = (): void => movementKeys.current.clear();
+    if (!active || autoCamera) {
+      stopMoving();
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("input, select, textarea, button, [contenteditable='true']")) return;
+      if (!["KeyW", "KeyA", "KeyS", "KeyD"].includes(event.code)) return;
+      event.preventDefault();
+      movementKeys.current.add(event.code);
+    };
+    const onKeyUp = (event: KeyboardEvent): void => { movementKeys.current.delete(event.code); };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", stopMoving);
+    return () => {
+      stopMoving();
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", stopMoving);
+    };
+  }, [active, autoCamera]);
 
   useFrame((_, delta) => {
     if (!active) {
@@ -111,6 +138,23 @@ function ReplayScene(props: ThreeReplayViewportProps) {
     }
 
     const orbit = controls.current;
+    if (orbit && !autoCamera && movementKeys.current.size) {
+      const forward = orbit.target.clone().sub(camera.position).setY(0);
+      if (forward.lengthSq() > 0) {
+        forward.normalize();
+        const right = forward.clone().cross(camera.up).normalize();
+        const movement = new THREE.Vector3();
+        if (movementKeys.current.has("KeyW")) movement.add(forward);
+        if (movementKeys.current.has("KeyS")) movement.sub(forward);
+        if (movementKeys.current.has("KeyD")) movement.add(right);
+        if (movementKeys.current.has("KeyA")) movement.sub(right);
+        if (movement.lengthSq() > 0) {
+          movement.normalize().multiplyScalar(FREE_CAMERA_SPEED * Math.min(delta, 0.1));
+          camera.position.add(movement);
+          orbit.target.add(movement);
+        }
+      }
+    }
     if (orbit && autoCamera) {
       const focus = cameraFocus(state, trackedPlayerKey);
       if (focus) {
@@ -354,6 +398,7 @@ function GoalBeam({ position, size, color }: { position: [number, number, number
 }
 
 function cameraFocus(state: InterpolatedReplayState, trackedKey: string | null): { target: THREE.Vector3; distance: number } | null {
+  if (trackedKey === BALL_TRACKING_KEY) return state.ball ? { target: toThreePosition(state.ball), distance: 27 } : null;
   const tracked = trackedKey ? state.cars.find(car => playerKey(car) === trackedKey) : null;
   const actors: Vector3Data[] = [];
   if (tracked) actors.push(tracked);

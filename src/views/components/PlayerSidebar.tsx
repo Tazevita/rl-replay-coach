@@ -1,6 +1,7 @@
 import type { InterpolatedReplayState, ReplayPlayer } from "../../replay/types";
 import type { PlayerPrediction } from "../../shared/contracts/replay-analysis-v2";
 import { PREDICTION_HORIZONS, type PredictionHorizon } from "../../replay/predictions";
+import { BALL_TRACKING_KEY } from "../../application/controllers/replay-viewer-controller";
 import { InfoCard } from "./InfoCard";
 
 interface PlayerSidebarProps {
@@ -23,9 +24,9 @@ export function PlayerSidebar(props: PlayerSidebarProps) {
   return <aside className="sidebar">
     <section className="card">
       <div className="card-heading">
-        <h2>Players</h2>
+        <h2>View Controls</h2>
       </div>
-      <PlayerTracker players={props.players} selected={props.trackedPlayerKey} onChange={props.onTrackPlayer} />
+      <PlayerTracker players={props.players} ballAvailable={Boolean(props.state.ball)} selected={props.trackedPlayerKey} onChange={props.onTrackPlayer} />
       {props.showProjections !== false && <ProjectedCarSettings
         players={props.predictionPlayers}
         enabled={props.projectedCarsEnabled}
@@ -96,11 +97,12 @@ export function ProjectedCarSettings({
   </fieldset>;
 }
 
-export function PlayerTracker({ players, selected, onChange }: { players: readonly ReplayPlayer[]; selected: string | null; onChange(key: string | null): void }) {
+export function PlayerTracker({ players, ballAvailable = true, selected, onChange }: { players: readonly ReplayPlayer[]; ballAvailable?: boolean; selected: string | null; onChange(key: string | null): void }) {
   return <label className="player-tracker">
-    <span>Auto track player</span>
-    <select aria-label="Auto track player" value={selected ?? ""} disabled={!players.length} onChange={event => onChange(event.currentTarget.value || null)}>
-      <option value="">Select a player</option>
+    <span>Autotrack</span>
+    <select aria-label="Autotrack" value={selected ?? ""} disabled={!ballAvailable && !players.length} onChange={event => onChange(event.currentTarget.value || null)}>
+      <option value="">Off</option>
+      <option value={BALL_TRACKING_KEY} disabled={!ballAvailable}>Ball</option>
       {players.map(player => <option key={player.key} value={player.key}>{player.name} ({player.team === 0 ? "Blue" : "Orange"})</option>)}
     </select>
   </label>;

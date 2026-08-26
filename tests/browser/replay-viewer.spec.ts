@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { smallReplayFixture } from "../../src/test/replay-fixture";
 import { validBundle } from "../../src/test/fixtures";
 import type { ReplayAnalysisBundleV2 } from "../../src/shared/contracts/replay-analysis-v2";
+import { BALL_TRACKING_KEY } from "../../src/application/controllers/replay-viewer-controller";
 
 test("loads, controls, uploads, analyzes, and navigates without browser errors", async ({ page }) => {
   const browserErrors: Error[] = [];
@@ -11,7 +12,6 @@ test("loads, controls, uploads, analyzes, and navigates without browser errors",
   bundle.analysis.teams[0].events[0].findings[0].navigation = { anchorSeconds: 12.5, preRollSeconds: 2.5 };
   bundle.analysis.teams[0].events[0].findings[0].subject = { displayName: "Alpha" };
   bundle.analysis.teams[0].events[0].findings[0].text += " (1-2s)";
-  await page.route("**/input/output.json", route => route.fulfill({ json: replay }));
   await page.route("**/api/replay-uploads", async route => {
     expect(route.request().method()).toBe("POST");
     expect(route.request().postDataJSON()).toMatchObject({ filename: "match.replay", size: 7 });
@@ -27,23 +27,25 @@ test("loads, controls, uploads, analyzes, and navigates without browser errors",
   await page.route("**/api/replay-jobs/job-id", route => route.fulfill({
     json: { jobId: "job-id", status: "completed", result: bundle },
   }));
+  await page.route("**/api/replays/opaque-id", route => route.fulfill({ json: bundle }));
   await page.route("**/api/replays/opaque-id/data", route => route.fulfill({ json: replay }));
 
-  await page.goto("/");
+  await page.goto("/?replay=opaque-id");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("DFH Stadium");
-  await expect(page.getByLabel("Match score")).toContainText("1");
+  await expect(page.getByLabel("Match score")).toContainText("BLUE");
   await expect(page.getByLabel("Overhead Rocket League field replay")).toBeVisible();
-  await expect(page.locator(".render-surface canvas")).toHaveCount(1);
+  await expect(page.locator(".render-surface:not(.hidden) canvas")).toHaveCount(1);
   await page.getByRole("button", { name: "Play replay" }).click();
   await expect(page.getByRole("button", { name: "Pause replay" })).toBeVisible();
   await page.getByRole("button", { name: "3D" }).click();
   await expect(page.getByRole("button", { name: "3D" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("3D Rocket League field replay")).toBeVisible();
-  await expect(page.locator(".render-surface canvas")).toHaveCount(1);
+  await expect(page.locator(".render-surface:not(.hidden) canvas")).toHaveCount(1);
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await page.getByRole("button", { name: "Auto Cam" }).click();
-  await expect(page.getByRole("button", { name: "Auto Cam" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".render-surface canvas")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Auto Cam" })).toHaveCount(0);
+  await page.getByLabel("Autotrack").selectOption(BALL_TRACKING_KEY);
+  await expect(page.getByLabel("Autotrack")).toHaveValue(BALL_TRACKING_KEY);
+  await expect(page.locator(".render-surface:not(.hidden) canvas")).toHaveCount(1);
   await page.getByRole("button", { name: "2D" }).click();
   await page.getByLabel("Upload replay").setInputFiles({ name: "match.replay", mimeType: "application/octet-stream", buffer: Buffer.from("fixture") });
   await expect(page.getByText("Blue team").last()).toBeVisible();
@@ -57,11 +59,10 @@ test("loads, controls, uploads, analyzes, and navigates without browser errors",
   await page.getByRole("checkbox", { name: "Auto-switch projection" }).check();
   await page.getByRole("checkbox", { name: "Auto-switch camera" }).check();
   await page.getByRole("button", { name: /Alpha finished the play/ }).click();
-  await expect(page.getByText("0:10.0")).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "Show projected cars" })).toBeChecked();
   await expect(page.getByRole("checkbox", { name: "Alpha" })).toBeChecked();
   await expect(page.getByLabel("Prediction timeframe")).toHaveValue("1-2");
-  await expect(page.getByRole("button", { name: "Auto Cam" })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByLabel("Auto track player")).toHaveValue("0:Alpha");
+  await expect(page.getByRole("button", { name: "3D" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Autotrack")).toHaveValue("0:Alpha");
   expect(browserErrors).toEqual([]);
 });

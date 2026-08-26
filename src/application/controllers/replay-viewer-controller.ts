@@ -37,6 +37,7 @@ export interface ReplayDataGateway {
 }
 
 export type ReplayView = "2d" | "3d" | "autocam";
+export const BALL_TRACKING_KEY = "__ball__";
 
 export interface ReplayViewerError {
   operation: "load" | "upload";
@@ -220,11 +221,11 @@ export class DefaultReplayViewerController implements ReplayViewerController {
   }
 
   setTrackedPlayer(playerKey: string | null): void {
-    const selected = playerKey && this.state.players.some(player => player.key === playerKey) ? playerKey : null;
+    const selected = playerKey === BALL_TRACKING_KEY || (playerKey && this.state.players.some(player => player.key === playerKey)) ? playerKey : null;
     if (selected === this.state.trackedPlayerKey && (!selected || this.state.view === "autocam")) return;
     this.update({
       trackedPlayerKey: selected,
-      view: selected ? "autocam" : this.state.view,
+      view: selected ? "autocam" : this.state.view === "autocam" ? "3d" : this.state.view,
       cameraResetVersion: selected ? this.state.cameraResetVersion + 1 : this.state.cameraResetVersion,
     });
   }

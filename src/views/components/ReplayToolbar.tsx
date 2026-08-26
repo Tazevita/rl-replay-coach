@@ -18,13 +18,11 @@ export function ReplayToolbar(props: ReplayToolbarProps) {
       <h1>{props.metadata ? `${props.metadata.mapName} • ${props.metadata.matchType}` : props.processing ? "Adding replay..." : props.whoThrew ? "Add a replay to find the thrower" : "Add a replay"}</h1>
     </div>
     <div className="topbar-actions">
-      <a className="check-player-link" href="/replay-history">Replay history</a>
       <a className="check-player-link" href="/check-player">Player Analysis</a>
-      <a className="check-player-link" href="/guides#replay-review">How to use this</a>
       {!props.whoThrew && <a className="check-player-link" href="/who-threw">Who threw?</a>}
       {props.whoThrew && <a className="check-player-link" href="/">Full analysis</a>}
       <UploadControl processing={props.processing} onUpload={props.onUpload} />
-      <ViewSelector view={props.view} onChange={props.onViewChange} autoLabel={props.whoThrew ? "Auto Ball" : "Auto Cam"} />
+      <ViewSelector view={props.view} onChange={props.onViewChange} />
     </div>
   </header>;
 }
@@ -48,15 +46,15 @@ export function UploadControl({ processing, onUpload }: Pick<ReplayToolbarProps,
   </form>;
 }
 
-export function ViewSelector({ view, onChange, autoLabel = "Auto Cam" }: { view: ReplayView; onChange: ReplayToolbarProps["onViewChange"]; autoLabel?: string }) {
+export function ViewSelector({ view, onChange }: { view: ReplayView; onChange: ReplayToolbarProps["onViewChange"] }) {
   return <div className="view-toggle" aria-label="Replay view">
-    {(["2d", "3d", "autocam"] as const).map(option => <button
+    {(["2d", "3d"] as const).map(option => <button
       key={option}
-      className={`view-option${option === "autocam" ? " autocam-option" : ""}${view === option ? " active" : ""}`}
+      className={`view-option${view === option || (option === "3d" && view === "autocam") ? " active" : ""}`}
       type="button"
-      aria-pressed={view === option}
+      aria-pressed={view === option || (option === "3d" && view === "autocam")}
       onClick={() => onChange(option)}
-    >{option === "autocam" ? autoLabel : option.toUpperCase()}</button>)}
+    >{option.toUpperCase()}</button>)}
   </div>;
 }
 

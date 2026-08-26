@@ -3,6 +3,7 @@ import { validBundle } from "../../test/fixtures";
 import type { RawRrrocketReplay } from "../../replay/types";
 import { RRROCKET_OBJECT_NAMES } from "../../replay/rrrocket-adapter";
 import {
+  BALL_TRACKING_KEY,
   DefaultReplayViewerController,
   type ReplayDataGateway,
   type ReplayProcessingGateway,
@@ -197,6 +198,10 @@ describe("DefaultReplayViewerController commands", () => {
     expect(controller.getSnapshot()).toMatchObject({ view: "3d", trackedPlayerKey: null });
     controller.setTrackedPlayer("0:Player");
     expect(controller.getSnapshot()).toMatchObject({ view: "autocam", trackedPlayerKey: "0:Player" });
+    controller.setTrackedPlayer(BALL_TRACKING_KEY);
+    expect(controller.getSnapshot()).toMatchObject({ view: "autocam", trackedPlayerKey: BALL_TRACKING_KEY });
+    controller.setTrackedPlayer(null);
+    expect(controller.getSnapshot()).toMatchObject({ view: "3d", trackedPlayerKey: null });
     controller.setView("2d");
     expect(controller.getSnapshot()).toMatchObject({ view: "2d", trackedPlayerKey: null });
   });

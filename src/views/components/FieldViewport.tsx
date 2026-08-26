@@ -3,6 +3,7 @@ import type { ReplayView, ReplayViewerController } from "../../application/contr
 import type { ReplayCar, ReplayPlayer } from "../../replay/types";
 import { projectedCarsAt, type PredictionHorizon } from "../../replay/predictions";
 import type { PlayerPredictions } from "../../shared/contracts/replay-analysis-v2";
+import { BALL_TRACKING_KEY } from "../../application/controllers/replay-viewer-controller";
 import { CanvasReplayRenderer } from "../../adapters/rendering/canvas2d/canvas-replay-renderer";
 import { ReplayRenderRuntime } from "../../adapters/rendering/replay-render-runtime";
 import type { ReplayRenderer } from "../../adapters/rendering/types";
@@ -73,9 +74,11 @@ export function FieldViewport({ controller, view, trackedPlayerKey, players, rep
     };
   }, [controller, view]);
   const tracked = trackedPlayerKey ? players.find(player => player.key === trackedPlayerKey) : null;
-  const hint = tracked
+  const hint = trackedPlayerKey === BALL_TRACKING_KEY
+    ? "AUTO CAM · Tracking the ball · Drag to rotate · Scroll to zoom"
+    : tracked
     ? `AUTO CAM · Tracking ${tracked.name} · Drag to rotate · Scroll to zoom`
-    : view === "autocam" ? "AUTO CAM · Tracking the play · Drag to rotate · Scroll to zoom" : "Drag to orbit · Scroll to zoom · Right-drag to pan";
+    : view === "autocam" ? "AUTO CAM · Tracking the play · Drag to rotate · Scroll to zoom" : "WASD to move · Drag to orbit · Scroll to zoom · Right-drag to pan";
   return <>
     <div ref={renderSurface} className={`render-surface${view === "2d" ? "" : " hidden"}`} />
     <Suspense fallback={null}>

@@ -13,6 +13,7 @@ import { PlayerSidebar, PlayerTracker, ProjectedCarSettings } from "./PlayerSide
 import { ReplayToolbar, Scoreboard, UploadControl, ViewSelector } from "./ReplayToolbar";
 import { useReplayKeyboard } from "../hooks/use-replay-keyboard";
 import { areSignupsEnabled, PasswordField } from "./AuthGate";
+import { BALL_TRACKING_KEY } from "../../application/controllers/replay-viewer-controller";
 
 afterEach(cleanup);
 
@@ -90,7 +91,8 @@ describe("toolbar and upload", () => {
   it("prompts for a replay when none is loaded", () => {
     render(<ReplayToolbar metadata={null} view="2d" processing={false} onUpload={vi.fn()} onViewChange={vi.fn()} />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Add a replay");
-    expect(screen.getByRole("link", { name: "How to use this" })).toHaveAttribute("href", "/guides#replay-review");
+    expect(screen.queryByRole("link", { name: "Replay history" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "How to use this" })).not.toBeInTheDocument();
   });
 
   it("renders scoreboard metadata safely and sends view actions", async () => {
@@ -101,9 +103,7 @@ describe("toolbar and upload", () => {
     expect(screen.getByLabelText("Match score")).toHaveTextContent("2");
     expect(screen.getByLabelText("Match score")).toHaveClass("replay-scoreboard");
     await userEvent.click(screen.getByRole("button", { name: "3D" }));
-    await userEvent.click(screen.getByRole("button", { name: "Auto Cam" }));
-    expect(onViewChange).toHaveBeenNthCalledWith(1, "3d");
-    expect(onViewChange).toHaveBeenNthCalledWith(2, "autocam");
+    expect(onViewChange).toHaveBeenCalledWith("3d");
   });
 
   it("shows a supplied live score instead of the final score", () => {
@@ -130,7 +130,8 @@ describe("toolbar and upload", () => {
     rerender(<ViewSelector view="3d" onChange={vi.fn()} />);
     expect(screen.getByRole("button", { name: "3D" })).toHaveAttribute("aria-pressed", "true");
     rerender(<ViewSelector view="autocam" onChange={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Auto Cam" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "3D" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "Auto Cam" })).not.toBeInTheDocument();
   });
 });
 
@@ -197,22 +198,25 @@ describe("playback and players", () => {
     expect(screen.getByText("OT +0:12")).toBeVisible();
   });
 
-  it("selects tracked players", async () => {
+  it("selects players and the ball for autotracking", async () => {
     const track = vi.fn();
     const players = [{ key: "0:Alpha", name: "Alpha", team: 0 }];
     render(<PlayerTracker players={players} selected={null} onChange={track} />);
-    await userEvent.selectOptions(screen.getByLabelText("Auto track player"), "0:Alpha");
-    expect(track).toHaveBeenCalledWith("0:Alpha");
+    await userEvent.selectOptions(screen.getByLabelText("Autotrack"), BALL_TRACKING_KEY);
+    await userEvent.selectOptions(screen.getByLabelText("Autotrack"), "0:Alpha");
+    expect(track).toHaveBeenNthCalledWith(1, BALL_TRACKING_KEY);
+    expect(track).toHaveBeenNthCalledWith(2, "0:Alpha");
   });
 
   it("renders live player details", () => {
     render(<PlayerSidebar state={{ frameIndex: 4, ball: { x: 0, y: 0, z: 250 }, cars: [{ id: 1, name: "Alpha", team: 0, x: 0, y: 0, z: 100, yaw: 0, rotation: null }] }} players={[]} trackedPlayerKey={null} onTrackPlayer={vi.fn()} predictionPlayers={[]} projectedCarsEnabled={false} projectedHorizon="0-1" selectedProjectedPlayerIds={[]} onProjectedCarsEnabled={vi.fn()} onProjectedHorizon={vi.fn()} onProjectedPlayers={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "View Controls" })).toBeVisible();
     expect(screen.getByText("Alpha")).toBeVisible();
   });
 
   it("can hide all projection controls while retaining player tracking", () => {
     render(<PlayerSidebar state={{ frameIndex: 0, ball: null, cars: [] }} players={[{ key: "0:Alpha", name: "Alpha", team: 0 }]} trackedPlayerKey={null} onTrackPlayer={vi.fn()} predictionPlayers={[]} projectedCarsEnabled={false} projectedHorizon="0-1" selectedProjectedPlayerIds={[]} onProjectedCarsEnabled={vi.fn()} onProjectedHorizon={vi.fn()} onProjectedPlayers={vi.fn()} showProjections={false} />);
-    expect(screen.getByLabelText("Auto track player")).toBeVisible();
+    expect(screen.getByLabelText("Autotrack")).toBeVisible();
     expect(screen.queryByRole("checkbox", { name: "Show projected cars" })).not.toBeInTheDocument();
   });
 

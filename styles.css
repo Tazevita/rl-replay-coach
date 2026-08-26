@@ -101,7 +101,6 @@ h2 { margin: 0; font-family: var(--font-display); font-size: 12px; font-weight: 
 .check-player-link:hover, .back-link:hover { color: var(--blue); }
 .view-toggle { display: flex; padding: 2px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg-deep); }
 .view-option { min-width: 42px; min-height: 30px; padding: 6px 10px; border: 0; border-radius: 2px; background: transparent; color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; transition: background .16s, color .16s; }
-.autocam-option { min-width: 72px; }
 .view-option:hover { color: var(--text); }
 .view-option.active { background: var(--panel-raised); color: var(--text); }
 .team-name { font-size: 9px; font-weight: 900; letter-spacing: .13em; }

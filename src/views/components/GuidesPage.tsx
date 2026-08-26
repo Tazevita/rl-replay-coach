@@ -17,7 +17,7 @@ const guides: readonly Guide[] = [
     eyebrow: "Replay review",
     title: "Read the match, not just the scoreboard.",
     description: "Learn the complete replay workflow, from upload to the decisions that changed the game.",
-    topics: ["Upload and navigate a replay", "Use 2D, 3D, and Auto Cam", "Read team analysis and projections"],
+    topics: ["Upload and navigate a replay", "Use 2D, 3D, and autotracking", "Read team analysis and projections"],
     href: "/",
     action: "Open replay viewer",
     youtubeId: "wO0YZea9R_Q",
