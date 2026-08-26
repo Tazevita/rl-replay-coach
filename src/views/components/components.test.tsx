@@ -106,6 +106,12 @@ describe("toolbar and upload", () => {
     expect(onViewChange).toHaveBeenNthCalledWith(2, "autocam");
   });
 
+  it("shows a supplied live score instead of the final score", () => {
+    render(<Scoreboard metadata={metadata} clock="4:20" score={{ blue: 1, orange: 0 }} overlay />);
+
+    expect(screen.getByLabelText("Match score")).toHaveTextContent("BLUE14:200ORANGE");
+  });
+
   it("disables uploads while processing and resets after a rejected upload", async () => {
     const upload = vi.fn(async () => { throw new Error("model failed"); });
     const { rerender } = render(<UploadControl processing onUpload={upload} />);
@@ -133,7 +139,7 @@ describe("playback and players", () => {
     const toggle = vi.fn();
     const seek = vi.fn();
     const speed = vi.fn();
-    const props = { available: true, playhead: 5, timelineStart: 0, duration: 20, clock: "4:55", endClock: "0:00", speed: 1, goals: metadata.goals, onToggle: toggle, onSeek: seek, onSpeed: speed };
+    const props = { available: true, playhead: 5, timelineStart: 0, duration: 20, clock: "4:55", endClock: "0:00", speed: 1, goals: metadata.goals, mistakeTimes: [], onToggle: toggle, onSeek: seek, onSpeed: speed };
     const { rerender } = render(<PlaybackControls {...props} playing={false} />);
     await userEvent.click(screen.getByRole("button", { name: "Play replay" }));
     expect(toggle).toHaveBeenCalled();
@@ -143,6 +149,31 @@ describe("playback and players", () => {
     expect(seek).toHaveBeenCalledWith(10);
     await userEvent.selectOptions(screen.getByLabelText("Playback speed"), "2");
     expect(speed).toHaveBeenCalledWith(2);
+  });
+
+  it("colors goals by scoring team and marks claimed mistakes", () => {
+    const { container } = render(<PlaybackControls
+      available
+      playing={false}
+      playhead={10}
+      timelineStart={5}
+      duration={20}
+      clock="4:55"
+      endClock="0:00"
+      speed={1}
+      goals={[
+        { frame: 1, time: 10, elapsed: 5, playerName: "Alpha", playerTeam: 0 },
+        { frame: 2, time: 20, elapsed: 15, playerName: "Bravo", playerTeam: 1 },
+      ]}
+      mistakeTimes={[9]}
+      onToggle={vi.fn()}
+      onSeek={vi.fn()}
+      onSpeed={vi.fn()}
+    />);
+
+    expect(container.querySelector(".goal-marker-blue")).toHaveStyle({ left: "25%" });
+    expect(container.querySelector(".goal-marker-orange")).toHaveStyle({ left: "75%" });
+    expect(container.querySelector(".mistake-timeline-marker")).toHaveStyle({ left: "20%" });
   });
 
   it("shows the countdown and overtime clocks from the in-game replay", () => {
@@ -156,6 +187,7 @@ describe("playback and players", () => {
       endClock="OT +0:12"
       speed={1}
       goals={[]}
+      mistakeTimes={[]}
       onToggle={vi.fn()}
       onSeek={vi.fn()}
       onSpeed={vi.fn()}

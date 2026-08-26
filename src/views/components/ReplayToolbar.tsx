@@ -60,12 +60,12 @@ export function ViewSelector({ view, onChange, autoLabel = "Auto Cam" }: { view:
   </div>;
 }
 
-export function Scoreboard({ metadata, clock, overlay = false }: { metadata: ReplayMetadata | null; clock: string; overlay?: boolean }) {
+export function Scoreboard({ metadata, clock, overlay = false, score }: { metadata: ReplayMetadata | null; clock: string; overlay?: boolean; score?: { blue: number; orange: number } }) {
   return <div className={`scoreboard${overlay ? " replay-scoreboard" : ""}`} aria-label="Match score">
     <span className="team-name blue-text">BLUE</span>
-    <strong className="score blue-text">{metadata?.blueScore ?? "-"}</strong>
+    <strong className="score blue-text">{score?.blue ?? metadata?.blueScore ?? "-"}</strong>
     <span className="game-clock">{clock}</span>
-    <strong className="score orange-text">{metadata?.orangeScore ?? "-"}</strong>
+    <strong className="score orange-text">{score?.orange ?? metadata?.orangeScore ?? "-"}</strong>
     <span className="team-name orange-text">ORANGE</span>
   </div>;
 }

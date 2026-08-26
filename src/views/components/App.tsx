@@ -20,6 +20,16 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
   const [projectedHorizon, setProjectedHorizon] = useState<PredictionHorizon>("0-1");
   const [selectedProjectedPlayerIds, setSelectedProjectedPlayerIds] = useState<readonly string[]>([]);
   const selectedProjectedPlayers = useMemo(() => new Set(selectedProjectedPlayerIds), [selectedProjectedPlayerIds]);
+  const mistakeTimes = useMemo(() => [...new Set(state.analysis.flatMap(team => team.events.flatMap(event => event.findings.flatMap(finding => {
+    const mistake = finding.extensions?.mistake;
+    if (finding.kind !== "disagreement" || !finding.subject?.playerId || !mistake) return [];
+    const snapshot = controller.snapshotAtSourceTime(finding.navigation?.anchorSeconds ?? mistake.startTimeSeconds);
+    return snapshot ? [snapshot.time] : [];
+  }))))], [controller, state.analysis, state.duration, state.timelineStart]);
+  const currentScore = state.metadata?.goals.reduce((score, goal) => {
+    if (goal.time <= state.playhead) score[goal.playerTeam === 0 ? "blue" : "orange"] += 1;
+    return score;
+  }, { blue: 0, orange: 0 });
   const predictionPlayerKey = state.playerPredictions.players.map(player => player.id).join("\0");
   useEffect(() => {
     setSelectedProjectedPlayerIds(state.playerPredictions.players.map(player => player.id));
@@ -78,7 +88,7 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
             projectedHorizon={projectedHorizon}
             selectedProjectedPlayerIds={selectedProjectedPlayers}
           />
-          <Scoreboard metadata={state.metadata} clock={formatGameClock(state.currentSnapshot ?? undefined)} overlay />
+          <Scoreboard metadata={state.metadata} clock={formatGameClock(state.currentSnapshot ?? undefined)} score={currentScore} overlay />
           <LoadingOverlay loading={state.loading} processing={state.processing} error={state.error} hasReplay={Boolean(state.metadata)} />
         </div>
         <PlaybackControls
@@ -91,6 +101,7 @@ export function App({ controller, mistakesGateway, mode = "teams" }: { controlle
           endClock={formatGameClock(controller.snapshotAtSourceTime(state.timelineEnd))}
           speed={state.speed}
           goals={state.metadata?.goals ?? []}
+          mistakeTimes={mistakeTimes}
           onToggle={() => controller.togglePlayback()}
           onSeek={time => controller.seek(time)}
           onSpeed={speed => controller.setSpeed(speed)}
