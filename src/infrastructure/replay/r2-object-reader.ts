@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectsCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { fromIni } from "@aws-sdk/credential-providers";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -10,6 +10,7 @@ interface AwsClient {
 
 export interface ReplayObjectReader {
   read(objectKey: string): Promise<unknown>;
+  delete(objectKeys: string[]): Promise<void>;
 }
 
 export interface R2ObjectReaderOptions {
@@ -53,6 +54,19 @@ export class R2ObjectReader implements ReplayObjectReader {
       return JSON.parse(body);
     } catch (error) {
       throw new Error(`R2 object ${objectKey} is not valid JSON.`, { cause: error });
+    }
+  }
+
+  async delete(objectKeys: string[]): Promise<void> {
+    if (objectKeys.length === 0) return;
+    const storage = await this.storage();
+    const response = await storage.client.send(new DeleteObjectsCommand({
+      Bucket: storage.bucket,
+      Delete: { Objects: objectKeys.map(Key => ({ Key })), Quiet: true },
+    }));
+    if (response.Errors?.length) {
+      const failures = response.Errors.map((error: { Key?: string; Code?: string }) => `${error.Key ?? "unknown"} (${error.Code ?? "unknown error"})`);
+      throw new Error(`R2 could not delete replay objects: ${failures.join(", ")}.`);
     }
   }
 

@@ -1,4 +1,4 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectsCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getSignedUrl } = vi.hoisted(() => ({
@@ -45,5 +45,33 @@ describe("R2ObjectReader", () => {
       ContentType: "application/octet-stream",
       Metadata: { sha256: "replay-sha256" },
     });
+  });
+
+  it("deletes all requested objects and reports per-object failures", async () => {
+    const storageClient = { send: vi.fn()
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ Errors: [{ Key: "jobs/job-1/source.replay", Code: "AccessDenied" }] }) };
+    const objects = new R2ObjectReader({
+      secretId: "rrrocket/dev/r2",
+      secretsClient: {
+        send: vi.fn(async () => ({ SecretString: JSON.stringify({
+          accountId: "account",
+          bucket: "replays",
+          accessKeyId: "key",
+          secretAccessKey: "secret",
+        }) })),
+      },
+      createStorageClient: () => storageClient,
+    });
+
+    const keys = ["jobs/job-1/source.replay", "jobs/job-1/parsed/replay.json"];
+    await expect(objects.delete(keys)).resolves.toBeUndefined();
+    expect(storageClient.send).toHaveBeenNthCalledWith(1, expect.any(DeleteObjectsCommand));
+    expect((storageClient.send.mock.calls[0][0] as DeleteObjectsCommand).input).toEqual({
+      Bucket: "replays",
+      Delete: { Objects: keys.map(Key => ({ Key })), Quiet: true },
+    });
+
+    await expect(objects.delete(keys)).rejects.toThrow("source.replay (AccessDenied)");
   });
 });

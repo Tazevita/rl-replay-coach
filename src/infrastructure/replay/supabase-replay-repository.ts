@@ -59,6 +59,16 @@ function isoTimestamp(value: string): string {
   return new Date(value).toISOString();
 }
 
+function replayArtifactKeys(replayObjectKey: string): string[] {
+  const match = replayObjectKey.match(/^(jobs\/[^/]+)\/parsed\/[^/]+$/);
+  if (!match) return [replayObjectKey];
+  return [
+    `${match[1]}/source.replay`,
+    replayObjectKey,
+    `${match[1]}/analysis/replay-analysis-v1.json`,
+  ];
+}
+
 async function fetchAll<T>(createQuery: () => any, operation: string): Promise<T[]> {
   const pageSize = 1_000;
   const rows: T[] = [];
@@ -105,6 +115,13 @@ export class SupabaseReplayRepository implements ReplayRepository {
   }
 
   async deleteReplay(id: string, createdBy: string): Promise<boolean> {
+    const row = unwrap(await this.client.from("replays")
+      .select("replay_object_key")
+      .eq("id", id)
+      .eq("created_by", createdBy)
+      .maybeSingle(), "get replay for deletion") as { replay_object_key: string } | null;
+    if (!row) return false;
+    await this.objects.delete(replayArtifactKeys(row.replay_object_key));
     const deleted = unwrap(await this.client.from("replays")
       .delete()
       .eq("id", id)

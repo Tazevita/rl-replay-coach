@@ -37,7 +37,10 @@ function mockClient(responses: Record<string, Array<{ data: unknown; error: null
   return { from, rpc: vi.fn(), calls };
 }
 
-const noObjects: ReplayObjectReader = { read: vi.fn(async () => replayData) };
+const noObjects: ReplayObjectReader = {
+  read: vi.fn(async () => replayData),
+  delete: vi.fn(async () => undefined),
+};
 
 describe("SupabaseReplayRepository", () => {
   it("publishes through the atomic RPC and requires a private R2 key", async () => {
@@ -67,7 +70,7 @@ describe("SupabaseReplayRepository", () => {
 
   it("loads and validates replay data from the stored private R2 object key", async () => {
     const client = mockClient({ replays: [{ data: { replay_object_key: "private/replay.json" }, error: null }] });
-    const objects = { read: vi.fn(async () => replayData) };
+    const objects = { read: vi.fn(async () => replayData), delete: vi.fn(async () => undefined) };
     const repository = new SupabaseReplayRepository(client as never, objects);
 
     await expect(repository.getReplay("replay-1", "johndoe")).resolves.toEqual(replayData);
@@ -77,18 +80,43 @@ describe("SupabaseReplayRepository", () => {
   it("lists and deletes creator-scoped replay history", async () => {
     const client = mockClient({ replays: [
       { data: [{ id: "new", filename: "new.replay", analyzed_at: "2026-08-19T00:00:00+00:00" }], error: null },
+      { data: { replay_object_key: "jobs/job-1/parsed/replay-v0.11.5.json" }, error: null },
       { data: { id: "new" }, error: null },
     ] });
-    const repository = new SupabaseReplayRepository(client as never, noObjects);
+    const objects: ReplayObjectReader = { read: noObjects.read, delete: vi.fn(async () => undefined) };
+    const repository = new SupabaseReplayRepository(client as never, objects);
 
     await expect(repository.listReplays("owner")).resolves.toEqual([
       { id: "new", filename: "new.replay", analyzedAt: "2026-08-19T00:00:00.000Z" },
     ]);
     await expect(repository.deleteReplay("new", "owner")).resolves.toBe(true);
+    expect(objects.delete).toHaveBeenCalledWith([
+      "jobs/job-1/source.replay",
+      "jobs/job-1/parsed/replay-v0.11.5.json",
+      "jobs/job-1/analysis/replay-analysis-v1.json",
+    ]);
     expect(client.calls[0].filters).toContainEqual(["eq", "created_by", "owner"]);
     expect(client.calls[1]).toMatchObject({ operation: "select", filters: [
       ["eq", "id", "new"], ["eq", "created_by", "owner"],
     ] });
+    expect(client.calls[2]).toMatchObject({ operation: "select", filters: [
+      ["eq", "id", "new"], ["eq", "created_by", "owner"],
+    ] });
+  });
+
+  it("does not delete the replay row when R2 deletion fails", async () => {
+    const client = mockClient({ replays: [
+      { data: { replay_object_key: "jobs/job-1/parsed/replay.json" }, error: null },
+    ] });
+    const objects: ReplayObjectReader = {
+      read: noObjects.read,
+      delete: vi.fn(async () => { throw new Error("R2 delete failed"); }),
+    };
+    const repository = new SupabaseReplayRepository(client as never, objects);
+
+    await expect(repository.deleteReplay("new", "owner")).rejects.toThrow("R2 delete failed");
+    expect(client.calls).toHaveLength(1);
+    expect(client.calls[0].operation).toBe("select");
   });
 
   it("aggregates creator-scoped history and preserves newest-first mistake ordering", async () => {
